@@ -1,0 +1,8 @@
+  ____  _ _        ____  _
+ | __ )(_) | _____/ ___|| |__   ___  _ __
+ |  _ \| | |/ / _ \___ \| '_ \ / _ \| '_ \
+ | |_) | |   <  __/___) | | | | (_) | |_) |
+ |____/|_|_|\_\___|____/|_| |_|\___/| .__/
+                                    |_|
+  :: bikeshop-registo :: Eureka: registo dos serviços :: porta ${server.port} :: Spring Boot ${spring-boot.version}
+

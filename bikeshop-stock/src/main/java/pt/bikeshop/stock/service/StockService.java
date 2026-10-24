@@ -6,6 +6,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pt.bikeshop.stock.configuration.MQConfig;
+import pt.bikeshop.stock.dto.ReservaDto;
 import pt.bikeshop.stock.dto.StockDto;
 import pt.bikeshop.stock.entity.Reserva;
 import pt.bikeshop.stock.entity.Stock;
@@ -41,8 +42,8 @@ public class StockService {
     }
 
     @Transactional(readOnly = true)
-    public List<Reserva> reservasDaEncomenda(UUID encomendaId) {
-        return reservas.findByEncomendaId(encomendaId);
+    public List<ReservaDto> reservasDaEncomenda(UUID encomendaId) {
+        return reservas.findByEncomendaId(encomendaId).stream().map(r -> mapper.map(r, ReservaDto.class)).toList();
     }
 
     public StockDto alterarQuantidade(String referencia, int quantidade) {

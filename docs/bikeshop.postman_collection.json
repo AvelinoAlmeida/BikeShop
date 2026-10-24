@@ -1,0 +1,1216 @@
+{
+  "info": {
+    "name": "BikeShop",
+    "description": "Todos os endpoints do BikeShop pela bikeshop-gateway, incluindo os casos de erro (slides 03 e 04: testar com o Postman e testar as várias exceções). Correr por ordem: a pasta Encomendas guarda o id da encomenda criada, que as pastas seguintes usam.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "gateway",
+      "value": "http://localhost:9080"
+    },
+    {
+      "key": "encomendaId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Catálogo",
+      "item": [
+        {
+          "name": "Landing",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/pecas/landing",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "pecas",
+                "landing"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Categorias",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/categorias",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "categorias"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"tem categorias\", () => pm.expect(pm.response.json().length).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Peças",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/pecas",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "pecas"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Peças: baterias até 700 € (JPQL)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/pecas?categoria=BAT&precoMax=700",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "pecas"
+              ],
+              "query": [
+                {
+                  "key": "categoria",
+                  "value": "BAT"
+                },
+                {
+                  "key": "precoMax",
+                  "value": "700"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"só baterias até 700 €\", () => pm.response.json().forEach(p => { pm.expect(p.categoriaCodigo).to.eql(\"BAT\"); pm.expect(p.preco).to.be.at.most(700); }));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Peça BAT-500",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/pecas/BAT-500",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "pecas",
+                "BAT-500"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Erro: peça inexistente (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/pecas/NAO-EXISTE",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "pecas",
+                "NAO-EXISTE"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"erro com o nome do serviço\", () => pm.expect(pm.response.json().servico).to.match(/^bikeshop-/));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Erro: criar peça sem preço (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/pecas",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "pecas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"referencia\": \"TST-001\",\n  \"nome\": \"Peça de teste Postman\",\n  \"marca\": \"BikeShop\",\n  \"descricao\": \"Criada pela coleção Postman\",\n  \"compatibilidade\": \"Universal\",\n  \"categoriaCodigo\": \"BAT\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"erro com o nome do serviço\", () => pm.expect(pm.response.json().servico).to.match(/^bikeshop-/));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar peça TST-001 (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/pecas",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "pecas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"referencia\": \"TST-001\",\n  \"nome\": \"Peça de teste Postman\",\n  \"marca\": \"BikeShop\",\n  \"descricao\": \"Criada pela coleção Postman\",\n  \"compatibilidade\": \"Universal\",\n  \"preco\": 9.9,\n  \"categoriaCodigo\": \"BAT\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Alterar peça TST-001",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/pecas/TST-001",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "pecas",
+                "TST-001"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"referencia\": \"TST-001\",\n  \"nome\": \"Peça de teste Postman\",\n  \"marca\": \"BikeShop\",\n  \"descricao\": \"Criada pela coleção Postman\",\n  \"compatibilidade\": \"Universal\",\n  \"preco\": 12.5,\n  \"categoriaCodigo\": \"BAT\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"novo preço\", () => pm.expect(pm.response.json().preco).to.eql(12.5));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Apagar peça TST-001 (204)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/pecas/TST-001",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "pecas",
+                "TST-001"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Stock",
+      "item": [
+        {
+          "name": "Landing",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/stock/landing",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "stock",
+                "landing"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stock de todas as peças",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/stock",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "stock"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stock de BAT-500",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/stock/BAT-500",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "stock",
+                "BAT-500"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Erro: peça sem stock (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/stock/NAO-EXISTE",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "stock",
+                "NAO-EXISTE"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"erro com o nome do serviço\", () => pm.expect(pm.response.json().servico).to.match(/^bikeshop-/));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Erro: quantidade negativa (400)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/stock/BAT-500",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "stock",
+                "BAT-500"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantidade\": -1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"erro com o nome do serviço\", () => pm.expect(pm.response.json().servico).to.match(/^bikeshop-/));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Encomendas (SAGA)",
+      "item": [
+        {
+          "name": "Landing",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/encomendas/landing",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "encomendas",
+                "landing"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar encomenda (202 PENDENTE)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/encomendas",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "encomendas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clienteNome\": \"Rita Moreira\",\n  \"clienteEmail\": \"rita@bikeshop.pt\",\n  \"linhas\": [\n    {\n      \"referencia\": \"BAT-500\",\n      \"quantidade\": 1\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 202\", () => pm.response.to.have.status(202));",
+                  "pm.test(\"fica PENDENTE\", () => pm.expect(pm.response.json().estado).to.eql(\"PENDENTE\"));",
+                  "pm.collectionVariables.set(\"encomendaId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Encomenda criada (RESERVADA)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/encomendas/{{encomendaId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "encomendas",
+                "{{encomendaId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"o stock reservou\", () => pm.expect(pm.response.json().estado).to.eql(\"RESERVADA\"));"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A SAGA corre por mensagens: dá tempo ao stock e aos pagamentos para responderem.",
+                  "setTimeout(() => {}, 2000);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Últimas encomendas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/encomendas",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "encomendas"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Erro: email inválido (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/encomendas",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "encomendas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clienteNome\": \"Rita Moreira\",\n  \"clienteEmail\": \"nao-e-email\",\n  \"linhas\": [\n    {\n      \"referencia\": \"BAT-500\",\n      \"quantidade\": 1\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"erro com o nome do serviço\", () => pm.expect(pm.response.json().servico).to.match(/^bikeshop-/));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Erro: encomenda sem linhas (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/encomendas",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "encomendas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clienteNome\": \"Rita Moreira\",\n  \"clienteEmail\": \"rita@bikeshop.pt\",\n  \"linhas\": []\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"erro com o nome do serviço\", () => pm.expect(pm.response.json().servico).to.match(/^bikeshop-/));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Erro: peça que não existe no catálogo (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/encomendas",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "encomendas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clienteNome\": \"Rita Moreira\",\n  \"clienteEmail\": \"rita@bikeshop.pt\",\n  \"linhas\": [\n    {\n      \"referencia\": \"NAO-EXISTE\",\n      \"quantidade\": 1\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"erro com o nome do serviço\", () => pm.expect(pm.response.json().servico).to.match(/^bikeshop-/));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Erro: JSON mal formado (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/encomendas",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "encomendas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{ isto não é json"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"erro com o nome do serviço\", () => pm.expect(pm.response.json().servico).to.match(/^bikeshop-/));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Erro: identificador inválido (400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/encomendas/nao-e-um-uuid",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "encomendas",
+                "nao-e-um-uuid"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"erro com o nome do serviço\", () => pm.expect(pm.response.json().servico).to.match(/^bikeshop-/));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Erro: encomenda inexistente (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/encomendas/00000000-0000-0000-0000-000000000000",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "encomendas",
+                "00000000-0000-0000-0000-000000000000"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"erro com o nome do serviço\", () => pm.expect(pm.response.json().servico).to.match(/^bikeshop-/));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Pagamentos",
+      "item": [
+        {
+          "name": "Landing",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/pagamentos/landing",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "pagamentos",
+                "landing"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Todos os pagamentos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/pagamentos",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "pagamentos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pagamento da encomenda (PENDENTE)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/pagamentos/encomenda/{{encomendaId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "pagamentos",
+                "encomenda",
+                "{{encomendaId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"espera pela decisão\", () => pm.expect(pm.response.json().estado).to.eql(\"PENDENTE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aprovar pagamento",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/pagamentos/encomenda/{{encomendaId}}/aprovar",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "pagamentos",
+                "encomenda",
+                "{{encomendaId}}",
+                "aprovar"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"APROVADO\", () => pm.expect(pm.response.json().estado).to.eql(\"APROVADO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Erro: aprovar outra vez (400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/pagamentos/encomenda/{{encomendaId}}/aprovar",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "pagamentos",
+                "encomenda",
+                "{{encomendaId}}",
+                "aprovar"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"erro com o nome do serviço\", () => pm.expect(pm.response.json().servico).to.match(/^bikeshop-/));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Erro: recusar um pagamento já aprovado (400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/pagamentos/encomenda/{{encomendaId}}/recusar",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "pagamentos",
+                "encomenda",
+                "{{encomendaId}}",
+                "recusar"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"erro com o nome do serviço\", () => pm.expect(pm.response.json().servico).to.match(/^bikeshop-/));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Erro: encomenda sem pagamento (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/pagamentos/encomenda/00000000-0000-0000-0000-000000000000",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "pagamentos",
+                "encomenda",
+                "00000000-0000-0000-0000-000000000000"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"erro com o nome do serviço\", () => pm.expect(pm.response.json().servico).to.match(/^bikeshop-/));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Encomenda paga (PAGA)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/encomendas/{{encomendaId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "encomendas",
+                "{{encomendaId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"a SAGA terminou\", () => pm.expect(pm.response.json().estado).to.eql(\"PAGA\"));"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A SAGA corre por mensagens: dá tempo ao stock e aos pagamentos para responderem.",
+                  "setTimeout(() => {}, 2000);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reservas confirmadas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/stock/reservas/{{encomendaId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "stock",
+                "reservas",
+                "{{encomendaId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"reserva CONFIRMADA, sem id interno\", () => { const r = pm.response.json()[0]; pm.expect(r.estado).to.eql(\"CONFIRMADA\"); pm.expect(r).to.not.have.property(\"id\"); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Infraestrutura (leitura)",
+      "item": [
+        {
+          "name": "Registo do Eureka",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/bastidores/registo",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "bastidores",
+                "registo"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filas do RabbitMQ",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/bastidores/filas",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "bastidores",
+                "filas"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

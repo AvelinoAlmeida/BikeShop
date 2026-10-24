@@ -33,6 +33,8 @@ if (-not $SemBuild) {
 
 Write-Host "== 3/4 kubectl apply -f k8s/" -ForegroundColor Cyan
 kubectl apply -f k8s/
+# As imagens novas tem a mesma etiqueta (1.0): sem reiniciar, os pods que ja existiam ficavam com as antigas.
+if (-not $SemBuild) { kubectl rollout restart deployment -n bikeshop }
 
 Write-Host "== 4/4 Rollout (o registo primeiro; o Spring demora)" -ForegroundColor Cyan
 foreach ($s in $servicos) { kubectl rollout status deployment/$s -n bikeshop --timeout=600s }

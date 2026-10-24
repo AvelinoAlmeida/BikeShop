@@ -106,7 +106,7 @@ O ponto de partida são os slides da unidade curricular. O que não aparece nele
 
 Tabela 3: Tecnologia e origem.
 
-Fica de fora: Liquibase (as tabelas são criadas pelo Hibernate e os dados de exemplo vêm do `data.sql`), Redis, tracing, circuit breaker, MapStruct e Swagger.
+O que os slides pedem, o que está feito e o que fica de fora (e porquê) está na secção 11.
 
 ## 4. Como correr
 
@@ -140,7 +140,18 @@ kubectl port-forward -n bikeshop svc/bikeshop-gateway 19080:80  # interface em h
 .\scripts\e2e-test.ps1 -Gateway http://localhost:19080
 ```
 
-No cluster correm os 6 serviços. O PostgreSQL e o RabbitMQ ficam no Docker Compose e os pods chegam-lhes por `host.minikube.internal`, como o slide 06 sugere para a persistência.
+No cluster correm os 6 serviços, o catálogo com 2 réplicas. O PostgreSQL e o RabbitMQ ficam no Docker Compose e os pods chegam-lhes por `host.minikube.internal`, como o slide 06 sugere para a persistência.
+
+**Ver o balanceamento (slides 04 e 06):** cada pedido a `GET /api/pecas/{referencia}` escreve no log a instância que respondeu. Depois de alguns pedidos (por exemplo, o `e2e-test.ps1`), os dois pods aparecem:
+
+```powershell
+kubectl logs -n bikeshop -l app=bikeshop-catalogo --prefix | Select-String "respondeu a instância"
+kubectl scale deployment bikeshop-catalogo -n bikeshop --replicas=3   # mais uma instância
+```
+
+**Docker Hub (slide 06):** depois de `docker login`, `.\scripts\publicar-dockerhub.ps1 -Utilizador <conta>` faz `docker tag` e `docker push` das 6 imagens como `<conta>/bikeshop-<serviço>:1.0` (`-Versao` para outra versão).
+
+**Postman (slides 03 e 04):** importar `docs/bikeshop.postman_collection.json` e correr a coleção por ordem (Runner). São 36 pedidos pela gateway, com todos os endpoints e os casos de erro (404, 400 de validação, JSON mal formado, UUID inválido, aprovar duas vezes). Cada pedido tem testes do código HTTP; a encomenda criada fica na variável `encomendaId` para os pedidos seguintes.
 
 ## 5. Nomes
 
@@ -195,11 +206,13 @@ POST /api/encomendas
 
 ## 7. Testes
 
-`.\mvnw.cmd verify` corre 31 testes, sem Docker (H2 em memória e RabbitMQ simulado):
+`.\mvnw.cmd verify` corre 48 testes, sem Docker (H2 em memória e RabbitMQ simulado):
 
 - **unitários da SAGA:** a encomenda (agregado e estados), o serviço de encomendas, o stock (tudo ou nada, repetição, confirmar e libertar) e os pagamentos;
 - **@DataJpaTest:** a query JPQL, a auditoria e a gravação da encomenda com as linhas;
-- **@WebMvcTest:** o controller do catálogo, incluindo o erro 404 com o nome do serviço.
+- **@WebMvcTest:** os controllers dos quatro serviços de negócio, incluindo o `/landing`, o erro 404 com o nome do serviço e os 400 de validação, de JSON mal formado e de identificador inválido.
+
+Nos testes o log fica só na consola (`src/test/resources/logback-test.xml`).
 
 O `scripts\e2e-test.ps1` testa o sistema a correr, pela gateway: encomenda paga com o stock em baixo, pagamento recusado com o stock libertado (compensação) e encomenda sem stock.
 
@@ -222,7 +235,8 @@ bikeshop-<serviço>/        um módulo por serviço, com o seu Dockerfile
 docker-compose.yml         infraestrutura (grupo bikeshop-infra)
 docker-compose.apps.yml    os 6 serviços (grupo bikeshop-apps)
 k8s/                       namespace, ConfigMap, Secret e um manifesto por serviço
-scripts/                   arrancar, parar, e2e-test e k8s-deploy
+scripts/                   arrancar, parar, e2e-test, k8s-deploy e publicar-dockerhub
+docs/                      coleção Postman (os PDFs dos slides ficam fora do Git)
 ```
 
 ## 10. Desenvolvimento
@@ -248,7 +262,69 @@ O que é preciso saber antes de mexer:
 - **Interface:** os ficheiros estão em `bikeshop-gateway/src/main/resources/static` e vão dentro do JAR da gateway. Depois de os alterar: `.\mvnw.cmd -pl bikeshop-gateway package -DskipTests` e `docker compose -f docker-compose.apps.yml up -d --build bikeshop-gateway`.
 - **Uma rota nova na API** tem de ser acrescentada às rotas do `bikeshop-gateway/src/main/resources/application.yml` (`lb://<nome no Eureka>`), senão o browser não lhe chega.
 - **Chamadas síncronas entre serviços** só por Feign com o nome no Eureka (ex.: `@FeignClient(name = "bikeshop-catalogo")` em `bikeshop-encomendas/clients`).
-- **Erros** saem do `ErroHandler` de cada serviço como JSON `{servico, estado, mensagem}`; lançar `NaoEncontradoException` para 404 e `IllegalArgumentException` para 400.
+- **Erros** saem do `ErroHandler` de cada serviço como JSON `{servico, estado, mensagem}`; lançar `NaoEncontradoException` para 404 e `IllegalArgumentException` para 400. JSON mal formado e identificadores inválidos dão 400. Um erro inesperado fica registado no log com o detalhe e o cliente recebe só uma mensagem genérica (500).
+- **Logging** (SLF4J com Logback): `logback-spring.xml` em cada serviço escreve na consola e em `logs/<serviço>.log`, com rotação diária e por tamanho. Nos containers a pasta é `/app/logs` (`docker exec bikeshop-stock ls logs`). Usar `@Slf4j` e mensagens parametrizadas (`log.info("... {}", valor)`).
+- **Banner:** cada serviço mostra no arranque o `banner.txt` com o seu nome e a porta.
 - **Configuração:** o `application.yml` de cada serviço tem valores por omissão para o anfitrião e lê `DB_HOST`, `DB_PORT`, `RABBITMQ_HOST`, `EUREKA_HOST`, etc. das variáveis de ambiente, que vêm do `docker-compose.apps.yml` ou do `k8s/01-configmap.yaml` e `02-secret.yaml`. Uma variável nova tem de ir para os dois sítios.
 - **Testes** usam `src/test/resources/application.yml`: H2 com `create-drop`, Eureka desligado e listeners do RabbitMQ com `auto-startup: false`. Não precisam de Docker.
 - **Dados de exemplo** vêm do `data.sql` (catálogo e stock); as referências das peças (ex.: `BAT-500`) têm de existir nos dois.
+
+## 11. Conformidade com os slides MTSDS
+
+Revisão do projeto contra os slides oficiais da UC (01 a 06, em `docs/`, fora do Git). "Feito" quer dizer que já estava aplicado; "Acrescentado" foi aplicado nesta revisão.
+
+| Slide | O que pede | Estado | Onde |
+|---|---|---|---|
+| 01 | Microsserviços autónomos, cada um uma aplicação Spring Boot | Feito | 6 módulos, cada um com o seu JAR e imagem |
+| 01 | Spring Cloud: service discovery, load balancer, API gateway | Feito | registo (Eureka), gateway, `lb://` e Feign |
+| 02 | Projeto Maven multi-módulo, versões no `dependencyManagement` do pai | Feito | `pom.xml` |
+| 02 | `application.yml` por módulo, com porta própria | Feito | `src/main/resources/application.yml` |
+| 02 | `banner.txt` por serviço ("boa prática") | Acrescentado | `src/main/resources/banner.txt` |
+| 02 | Lombok | Feito | entidades, DTO, services |
+| 02 | Logging com SLF4J (Logback) e mensagens parametrizadas | Feito; ficheiro acrescentado | `@Slf4j`, `logback-spring.xml` |
+| 02 | Packages por camada (controllers, models, exceptions, data…) | Feito | Tabela 1 |
+| 02 | `@RestController`, `ResponseEntity`, códigos HTTP certos (200, 201, 202, 204, 400, 404) | Feito | controllers e `ErroHandler` |
+| 02 | Testes com MockMvc ("boa prática") | Acrescentado (todos os controllers) | `*ControllerTest` |
+| 02 | Actuator, sem expor tudo em produção | Feito | só `health` e `info`, com probes |
+| 03 | Spring Data JPA, `JpaRepository`, queries pelo nome do método | Feito | `repository/` |
+| 03 | `@Query` em JPQL | Feito | `PecaRepository` |
+| 03 | `@OneToMany`/`@ManyToOne`, `mappedBy`, `cascade` | Feito | `Encomenda`/`LinhaEncomenda`, `Peca`/`Categoria` |
+| 03 | Auditoria `@CreatedDate`/`@LastModifiedDate` com `@EntityListeners` | Feito | entidades e `@EnableJpaAuditing` |
+| 03 | Camada de serviço com `@Service` e `@Transactional` | Feito | `service/` |
+| 03 | PostgreSQL em Docker Compose, com volume; H2 nos testes | Feito | `docker-compose.yml`, `src/test/resources` |
+| 03 | Não mandar o detalhe técnico do erro ao cliente; registar no log | Acrescentado | `ErroHandler` (500 genérico com `log.error`) |
+| 03 | Testes unitários para os vários endpoints | Acrescentado | 48 testes (secção 7) |
+| 03/04 | Testar com o Postman, incluindo as exceções | Acrescentado | `docs/bikeshop.postman_collection.json` |
+| 04 | DTO em vez de entidades na API ("boa prática") | Feito; corrigido nas reservas | `dto/`, `ReservaDto` |
+| 04 | ModelMapper | Feito | `@Bean` em cada `configuration/` |
+| 04 | `spring.application.name` único | Feito | Tabela 4 |
+| 04 | `/landing` em cada serviço | Feito | Tabela 6 |
+| 04 | Exceções próprias e `@ControllerAdvice`, erro com o nome do serviço | Feito | `exception/` |
+| 04 | Spring Cloud Gateway com rotas e integração com o Eureka | Feito | `bikeshop-gateway/src/main/resources/application.yml` |
+| 04 | Eureka server que não se regista a si próprio; clientes em todos os serviços | Feito | `bikeshop-registo` |
+| 04 | OpenFeign com o nome do serviço (usa o load balancer) | Feito | `CatalogoClient` |
+| 04 | Várias instâncias e ver o balanceamento no log | Acrescentado | catálogo com 2 réplicas em `k8s/`, log da instância |
+| 04 | Logback com ficheiro local (exercício) | Acrescentado | `logs/<serviço>.log` |
+| 05 | `spring-boot-starter-amqp`, `MQConfig` com exchange, filas e bindings | Feito | `configuration/MQConfig` |
+| 05 | TopicExchange e routing keys | Feito | Tabela 2 |
+| 05 | `Jackson2JsonMessageConverter` no produtor e no consumidor | Feito | `MQConfig` |
+| 05 | `@RabbitListener` e package `messages` | Feito | `listeners/`, `messages/` |
+| 05 | RabbitMQ com consola de gestão em Docker | Feito | `docker-compose.yml` (porta 15673) |
+| 05 | Resiliência: parar o consumidor e ver as mensagens esperarem na fila | Feito | filas duráveis; ver na interface (Ao vivo) ou na consola |
+| 06 | Dockerfile por serviço, `spring-boot-maven-plugin`, JAR com nome fixo | Feito | `bikeshop-*/Dockerfile`, `<finalName>` |
+| 06 | `docker tag` e `docker push` para o Docker Hub, com versão | Acrescentado | `scripts/publicar-dockerhub.ps1` |
+| 06 | Minikube e kubectl; pasta com os YAML | Feito | `k8s/`, `scripts/k8s-deploy.ps1` |
+| 06 | Deployment com réplicas e Service (LoadBalancer na entrada) | Feito; réplicas acrescentadas | `k8s/bikeshop-*.yaml` |
+| 06 | ConfigMap e Secret para separar a configuração do código | Feito | `k8s/01-configmap.yaml`, `02-secret.yaml` |
+| 06 | `kubectl scale`, `logs`, `describe` | Feito | secção 4 |
+
+Tabela 7: Conformidade com os slides.
+
+**Fora de âmbito, de propósito.** Os slides só os mencionam, sem pedir que se apliquem; ficam de fora para o projeto continuar pequeno:
+
+- **Swagger/OpenAPI, Liquibase/Flyway, MapStruct:** não aparecem nos slides. As tabelas são criadas pelo Hibernate (`ddl-auto`, slide 03) e os dados vêm do `data.sql`.
+- **Circuit breaker (Resilience4j), tracing (Zipkin), Spring Cloud Config:** só listados no slide 01 como serviços do Spring Cloud.
+- **Spring Security:** só listado como módulo (slides 01 e 02); o slide 04 diz que a autenticação "pode ser feita" na gateway.
+- **Dead-letter exchange, retries e ack manual no RabbitMQ:** só no glossário do slide 05.
+- **Ingress, PersistentVolume e StatefulSet:** só como conceitos no slide 06, que sugere manter a persistência fora do cluster.
+- **Eureka em vários nós e erros enviados por email:** recomendação e exercício do slide 04 que pedem infraestrutura extra (mais nós, servidor de email).

@@ -7,7 +7,9 @@ metadata:
   labels:
     app: bikeshop-catalogo
 spec:
-  replicas: 1
+  # Duas instâncias para ver o balanceamento da gateway e do Feign (slides 04 e 06):
+  #   kubectl logs -n bikeshop -l app=bikeshop-catalogo --prefix | Select-String "respondeu a instância"
+  replicas: 2
   selector:
     matchLabels:
       app: bikeshop-catalogo

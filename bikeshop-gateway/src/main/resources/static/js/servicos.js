@@ -85,7 +85,7 @@ const SERVICOS = [
             ['GET', '/api/stock', 'Listar o stock (com livre)'],
             ['GET', '/api/stock/{referencia}', 'Stock de uma peça'],
             ['PUT', '/api/stock/{referencia}', 'Repor a quantidade em armazém'],
-            ['GET', '/api/stock/reservas/{encomendaId}', 'Reservas de uma encomenda'],
+            ['GET', '/api/stock/reservas/{encomendaId}', 'Reservas de uma encomenda (DTO)'],
             ['GET', '/api/stock/landing', 'Confirmar que o serviço responde'],
         ],
         publica: [
@@ -105,6 +105,7 @@ const SERVICOS = [
             'Publica só depois do commit (TransactionSynchronization), para não anunciar uma reserva que não ficou gravada.',
         ],
         testes: [
+            ['StockControllerTest', 5, '@WebMvcTest: landing, stock livre, 404 com o nome do serviço, 400 com quantidade negativa e reservas em DTO'],
             ['StockServiceTest', 5, 'Unitários: tudo ou nada, mensagem repetida, confirmar e libertar'],
             ['ReservaRepositoryTest', 1, '@DataJpaTest: reservas por encomenda'],
         ],
@@ -151,6 +152,7 @@ const SERVICOS = [
             'Só um pagamento PENDENTE pode ser aprovado ou recusado.',
         ],
         testes: [
+            ['PagamentosControllerTest', 6, '@WebMvcTest: landing, pagamento da encomenda, 404, aprovar, aprovar duas vezes (400) e UUID inválido (400)'],
             ['PagamentosServiceTest', 5, 'Unitários: criar, mensagem repetida, aprovar, recusar e não pagar duas vezes'],
         ],
         verificar: ['curl.exe -s http://localhost:9080/api/pagamentos', 'Lista dos pagamentos (vazia num arranque limpo)'],
@@ -202,6 +204,7 @@ const SERVICOS = [
             'Publica só depois do commit, para o stock nunca receber uma encomenda que não ficou gravada.',
         ],
         testes: [
+            ['EncomendasControllerTest', 6, '@WebMvcTest: landing, POST 202, email inválido, sem linhas, JSON mal formado (400) e 404'],
             ['EncomendaTest', 6, 'O agregado: total, quantidade zero, caminho feliz, transições proibidas e repetições'],
             ['EncomendasServiceTest', 6, 'Unitários: preço do catálogo, peça inexistente, cada resposta da SAGA e a compensação'],
             ['EncomendaRepositoryTest', 1, '@DataJpaTest: gravar a encomenda com as linhas'],

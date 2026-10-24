@@ -3,9 +3,9 @@ package pt.bikeshop.stock.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import pt.bikeshop.stock.dto.ReservaDto;
 import pt.bikeshop.stock.dto.StockDto;
 import pt.bikeshop.stock.dto.StockPedido;
-import pt.bikeshop.stock.entity.Reserva;
 import pt.bikeshop.stock.service.StockService;
 
 import java.util.List;
@@ -39,7 +39,7 @@ public class StockController {
     }
 
     @GetMapping("/reservas/{encomendaId}")
-    public List<Reserva> reservas(@PathVariable UUID encomendaId) {
+    public List<ReservaDto> reservas(@PathVariable UUID encomendaId) {
         return stock.reservasDaEncomenda(encomendaId);
     }
 }

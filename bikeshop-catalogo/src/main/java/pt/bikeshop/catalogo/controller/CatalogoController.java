@@ -2,6 +2,7 @@ package pt.bikeshop.catalogo.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import pt.bikeshop.catalogo.dto.CategoriaDto;
@@ -10,12 +11,18 @@ import pt.bikeshop.catalogo.dto.PecaPedido;
 import pt.bikeshop.catalogo.service.CatalogoService;
 
 import java.math.BigDecimal;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
 public class CatalogoController {
+
+    /** Nome da máquina (no Kubernetes, o pod): mostra no log qual das réplicas respondeu (slides 04 e 06). */
+    private static final String INSTANCIA = nomeDaInstancia();
 
     private final CatalogoService catalogo;
 
@@ -39,6 +46,7 @@ public class CatalogoController {
 
     @GetMapping("/pecas/{referencia}")
     public PecaDto peca(@PathVariable String referencia) {
+        log.info("Peça {} pedida; respondeu a instância {}", referencia, INSTANCIA);
         return catalogo.obterPeca(referencia);
     }
 
@@ -57,5 +65,13 @@ public class CatalogoController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void apagar(@PathVariable String referencia) {
         catalogo.apagarPeca(referencia);
+    }
+
+    private static String nomeDaInstancia() {
+        try {
+            return InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+            return "desconhecida";
+        }
     }
 }

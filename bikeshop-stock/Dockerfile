@@ -9,6 +9,9 @@ LABEL org.opencontainers.image.title="bikeshop-stock" org.opencontainers.image.d
 RUN addgroup -S spring && adduser -S spring -G spring
 WORKDIR /app
 
+# Pasta dos ficheiros de log (logback-spring.xml), escrita pelo utilizador sem privilégios
+RUN mkdir logs && chown spring:spring logs
+
 EXPOSE 9082
 
 ADD bikeshop-stock/target/bikeshop-stock.jar bikeshop-stock.jar
