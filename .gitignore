@@ -12,4 +12,4 @@ logs/
 .factorypath
 
 ### Material da UC (slides), fica fora do Git ###
-docs/*.pdf
+docs/

@@ -11,6 +11,7 @@ import pt.bikeshop.catalogo.exception.NaoEncontradoException;
 import pt.bikeshop.catalogo.service.CatalogoService;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -46,6 +47,19 @@ class CatalogoControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.referencia").value("BAT-500"))
                 .andExpect(jsonPath("$.preco").value(649.00));
+    }
+
+    @Test
+    void devolveAsPecasDeUmaMarca() throws Exception {
+        PecaDto dto = new PecaDto();
+        dto.setReferencia("BAT-500");
+        dto.setMarca("Bosch");
+        when(catalogo.listarPecasDaMarca("Bosch")).thenReturn(List.of(dto));
+
+        mvc.perform(get("/api/pecas/marca/Bosch"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].referencia").value("BAT-500"))
+                .andExpect(jsonPath("$[0].marca").value("Bosch"));
     }
 
     @Test

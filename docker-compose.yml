@@ -1,4 +1,4 @@
-# Infraestrutura do BikeShop: grupo bikeshop-infra no Docker Desktop.
+# Infraestrutura do BikeShop: grupo bikeshop-infra no Docker Desktop (PostgreSQL x4, RabbitMQ e Adminer).
 #   docker compose up -d --wait     # arranca e espera que fique tudo healthy
 #   docker compose down             # para (os volumes bikeshop-*-dados ficam)
 #   docker compose down -v          # para e apaga os dados (voltam os dados de exemplo)
@@ -80,6 +80,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
+
+  # Gestão das bases de dados no browser (slide 04: Adminer/pgAdmin ao lado do PostgreSQL).
+  # http://localhost:18081  sistema PostgreSQL, servidor bikeshop-postgres-<serviço>, bikeshop / bikeshop
+  bikeshop-adminer:
+    image: adminer:4.8.1
+    container_name: bikeshop-adminer
+    labels:
+      bikeshop.descricao: "Gestão das bases de dados (http://localhost:18081)"
+    environment:
+      ADMINER_DEFAULT_SERVER: bikeshop-postgres-catalogo
+    ports: ["18081:8080"]
     restart: unless-stopped
 
 networks:

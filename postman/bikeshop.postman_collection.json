@@ -144,6 +144,37 @@
           ]
         },
         {
+          "name": "Peças da marca Bosch (versão 2.0)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/pecas/marca/Bosch",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "pecas",
+                "marca",
+                "Bosch"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Só peças Bosch\", () => pm.response.json().forEach(p => pm.expect(p.marca).to.eql(\"Bosch\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Peça BAT-500",
           "request": {
             "method": "GET",

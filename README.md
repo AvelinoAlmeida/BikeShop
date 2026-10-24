@@ -120,12 +120,12 @@ O que os slides pedem, o que está feito e o que fica de fora (e porquê) está 
 .\scripts\parar.ps1           # para tudo e mantém os dados (-ApagarDados para começar do zero)
 ```
 
-A interface fica em http://localhost:9080/ e a consola do RabbitMQ em http://localhost:15673 (bikeshop / bikeshop).
+A interface fica em http://localhost:9080/, a consola do RabbitMQ em http://localhost:15673 (bikeshop / bikeshop) e o Adminer, para ver as bases de dados, em http://localhost:18081 (sistema PostgreSQL, servidor `bikeshop-postgres-<serviço>`, bikeshop / bikeshop, base de dados `bikeshop_<serviço>`).
 
 **Passo a passo, sem o script:**
 
 ```powershell
-docker compose up -d --wait                                # PostgreSQL x4 e RabbitMQ (grupo bikeshop-infra)
+docker compose up -d --wait                                # PostgreSQL x4, RabbitMQ e Adminer (grupo bikeshop-infra)
 .\mvnw.cmd package                                         # compila e corre os testes
 docker compose -f docker-compose.apps.yml up -d --build    # os 6 serviços (grupo bikeshop-apps)
 ```
@@ -149,9 +149,21 @@ kubectl logs -n bikeshop -l app=bikeshop-catalogo --prefix | Select-String "resp
 kubectl scale deployment bikeshop-catalogo -n bikeshop --replicas=3   # mais uma instância
 ```
 
-**Docker Hub (slide 06):** depois de `docker login`, `.\scripts\publicar-dockerhub.ps1 -Utilizador <conta>` faz `docker tag` e `docker push` das 6 imagens como `<conta>/bikeshop-<serviço>:1.0` (`-Versao` para outra versão).
+**Docker Hub (slide 06):** depois de `docker login`, `.\scripts\publicar-dockerhub.ps1 -Utilizador <conta>` faz `docker tag` e `docker push` das 6 imagens como `<conta>/bikeshop-<serviço>:1.0` (`-Versao` para outra versão). Estão publicadas a 1.0 e a 2.0 em https://hub.docker.com/u/8220800.
 
-**Postman (slides 03 e 04):** importar `docs/bikeshop.postman_collection.json` e correr a coleção por ordem (Runner). São 36 pedidos pela gateway, com todos os endpoints e os casos de erro (404, 400 de validação, JSON mal formado, UUID inválido, aprovar duas vezes). Cada pedido tem testes do código HTTP; a encomenda criada fica na variável `encomendaId` para os pedidos seguintes.
+**Nova versão em produção no Minikube (exercício do slide 06):** a 2.0 acrescenta `GET /api/pecas/marca/{marca}` ao catálogo. Depois de a publicar, o `k8s-atualizar.ps1` muda o Deployment para a imagem do Docker Hub e acompanha a substituição dos pods, um de cada vez:
+
+```powershell
+.\scripts\arrancar.ps1 -Compilar                                       # imagens locais com o código novo
+.\scripts\publicar-dockerhub.ps1 -Utilizador 8220800 -Versao 2.0
+.\scripts\k8s-atualizar.ps1 -Utilizador 8220800 -Servico catalogo -Versao 2.0
+kubectl get pods -n bikeshop -l app=bikeshop-catalogo -w                # noutro terminal: os pods a serem recriados
+kubectl rollout undo deployment/bikeshop-catalogo -n bikeshop           # voltar à versão anterior
+```
+
+O `k8s-deploy.ps1` volta a aplicar os manifestos de `k8s/`, com as imagens locais 1.0.
+
+**Postman (slides 03 e 04):** importar `postman/bikeshop.postman_collection.json` e correr a coleção por ordem (Runner). São 37 pedidos pela gateway, com todos os endpoints e os casos de erro (404, 400 de validação, JSON mal formado, UUID inválido, aprovar duas vezes). Cada pedido tem testes do código HTTP; a encomenda criada fica na variável `encomendaId` para os pedidos seguintes.
 
 ## 5. Nomes
 
@@ -163,6 +175,7 @@ Os nomes dizem o que cada coisa é. O prefixo `bikeshop-` separa este projeto de
 | Grupos no Docker Desktop | bikeshop-infra (infraestrutura) e bikeshop-apps (serviços) |
 | Bases de dados | bikeshop-postgres-catalogo, -stock, -pagamentos e -encomendas |
 | Broker | bikeshop-rabbitmq |
+| Gestão das BD | bikeshop-adminer |
 | Imagens | bikeshop-<serviço>:1.0, com as etiquetas OCI de título e descrição |
 | Volumes | bikeshop-postgres-<serviço>-dados e bikeshop-rabbitmq-dados |
 | Rede | bikeshop-rede |
@@ -175,6 +188,7 @@ Tabela 4: Nomes no Docker e no Kubernetes.
 | 9080 a 9084, 9761 | Serviços |
 | 55432 a 55435 | PostgreSQL (catálogo, stock, pagamentos, encomendas) |
 | 5673, 15673 | RabbitMQ (AMQP e consola) |
+| 18081 | Adminer (gestão das bases de dados) |
 
 Tabela 5: Portas no anfitrião. São diferentes das habituais para não colidirem com outros projetos.
 
@@ -186,6 +200,7 @@ Todos os caminhos passam pela gateway (http://localhost:9080).
 |---|---|---|
 | GET /api/categorias | catálogo | Lista as categorias |
 | GET /api/pecas?categoria=BAT&precoMax=700 | catálogo | Lista as peças (filtro opcional) |
+| GET /api/pecas/marca/Bosch | catálogo | Peças de uma marca, por preço (versão 2.0) |
 | GET, PUT, DELETE /api/pecas/{referencia}; POST /api/pecas | catálogo | Consulta e gestão das peças |
 | GET /api/stock, GET e PUT /api/stock/{referencia} | stock | Quantidades; o PUT repõe o armazém |
 | GET /api/stock/reservas/{encomendaId} | stock | Reservas de uma encomenda |
@@ -206,10 +221,11 @@ POST /api/encomendas
 
 ## 7. Testes
 
-`.\mvnw.cmd verify` corre 48 testes, sem Docker (H2 em memória e RabbitMQ simulado):
+`.\mvnw.cmd verify` corre 54 testes, sem Docker (H2 em memória e RabbitMQ simulado):
 
 - **unitários da SAGA:** a encomenda (agregado e estados), o serviço de encomendas, o stock (tudo ou nada, repetição, confirmar e libertar) e os pagamentos;
-- **@DataJpaTest:** a query JPQL, a auditoria e a gravação da encomenda com as linhas;
+- **@DataJpaTest:** a query JPQL, a procura por marca, a auditoria e a gravação da encomenda com as linhas;
+- **OpenFeign (`CatalogoClientTest`):** o `CatalogoClient` a sério, contra duas instâncias falsas do catálogo declaradas no discovery simples. Confirma o JSON, que o LoadBalancer reparte os pedidos pelas duas e que o 404 do catálogo chega à encomenda como 400;
 - **@WebMvcTest:** os controllers dos quatro serviços de negócio, incluindo o `/landing`, o erro 404 com o nome do serviço e os 400 de validação, de JSON mal formado e de identificador inválido.
 
 Nos testes o log fica só na consola (`src/test/resources/logback-test.xml`).
@@ -235,8 +251,8 @@ bikeshop-<serviço>/        um módulo por serviço, com o seu Dockerfile
 docker-compose.yml         infraestrutura (grupo bikeshop-infra)
 docker-compose.apps.yml    os 6 serviços (grupo bikeshop-apps)
 k8s/                       namespace, ConfigMap, Secret e um manifesto por serviço
-scripts/                   arrancar, parar, e2e-test, k8s-deploy e publicar-dockerhub
-docs/                      coleção Postman (os PDFs dos slides ficam fora do Git)
+scripts/                   arrancar, parar, e2e-test, k8s-deploy, k8s-atualizar e publicar-dockerhub
+postman/                   coleção Postman (a pasta docs/, com os slides, fica fora do Git)
 ```
 
 ## 10. Desenvolvimento
@@ -293,8 +309,8 @@ Revisão do projeto contra os slides oficiais da UC (01 a 06, em `docs/`, fora d
 | 03 | Camada de serviço com `@Service` e `@Transactional` | Feito | `service/` |
 | 03 | PostgreSQL em Docker Compose, com volume; H2 nos testes | Feito | `docker-compose.yml`, `src/test/resources` |
 | 03 | Não mandar o detalhe técnico do erro ao cliente; registar no log | Acrescentado | `ErroHandler` (500 genérico com `log.error`) |
-| 03 | Testes unitários para os vários endpoints | Acrescentado | 48 testes (secção 7) |
-| 03/04 | Testar com o Postman, incluindo as exceções | Acrescentado | `docs/bikeshop.postman_collection.json` |
+| 03 | Testes unitários para os vários endpoints | Acrescentado | 54 testes (secção 7) |
+| 03/04 | Testar com o Postman, incluindo as exceções | Acrescentado | `postman/bikeshop.postman_collection.json` |
 | 04 | DTO em vez de entidades na API ("boa prática") | Feito; corrigido nas reservas | `dto/`, `ReservaDto` |
 | 04 | ModelMapper | Feito | `@Bean` em cada `configuration/` |
 | 04 | `spring.application.name` único | Feito | Tabela 4 |
@@ -303,6 +319,8 @@ Revisão do projeto contra os slides oficiais da UC (01 a 06, em `docs/`, fora d
 | 04 | Spring Cloud Gateway com rotas e integração com o Eureka | Feito | `bikeshop-gateway/src/main/resources/application.yml` |
 | 04 | Eureka server que não se regista a si próprio; clientes em todos os serviços | Feito | `bikeshop-registo` |
 | 04 | OpenFeign com o nome do serviço (usa o load balancer) | Feito | `CatalogoClient` |
+| 04 | Testes que usam o OpenFeign (exercício) | Acrescentado | `CatalogoClientTest` |
+| 04 | Ferramenta de gestão da BD ao lado do PostgreSQL (Adminer/pgAdmin) | Acrescentado | `bikeshop-adminer` no `docker-compose.yml` |
 | 04 | Várias instâncias e ver o balanceamento no log | Acrescentado | catálogo com 2 réplicas em `k8s/`, log da instância |
 | 04 | Logback com ficheiro local (exercício) | Acrescentado | `logs/<serviço>.log` |
 | 05 | `spring-boot-starter-amqp`, `MQConfig` com exchange, filas e bindings | Feito | `configuration/MQConfig` |
@@ -312,13 +330,37 @@ Revisão do projeto contra os slides oficiais da UC (01 a 06, em `docs/`, fora d
 | 05 | RabbitMQ com consola de gestão em Docker | Feito | `docker-compose.yml` (porta 15673) |
 | 05 | Resiliência: parar o consumidor e ver as mensagens esperarem na fila | Feito | filas duráveis; ver na interface (Ao vivo) ou na consola |
 | 06 | Dockerfile por serviço, `spring-boot-maven-plugin`, JAR com nome fixo | Feito | `bikeshop-*/Dockerfile`, `<finalName>` |
-| 06 | `docker tag` e `docker push` para o Docker Hub, com versão | Acrescentado | `scripts/publicar-dockerhub.ps1` |
+| 06 | `docker tag` e `docker push` para o Docker Hub, com versão | Acrescentado | `scripts/publicar-dockerhub.ps1` (1.0 e 2.0) |
+| 06 | Nova versão em produção e acompanhar a recriação dos pods (exercício) | Acrescentado | `scripts/k8s-atualizar.ps1` (catálogo 2.0) |
 | 06 | Minikube e kubectl; pasta com os YAML | Feito | `k8s/`, `scripts/k8s-deploy.ps1` |
 | 06 | Deployment com réplicas e Service (LoadBalancer na entrada) | Feito; réplicas acrescentadas | `k8s/bikeshop-*.yaml` |
 | 06 | ConfigMap e Secret para separar a configuração do código | Feito | `k8s/01-configmap.yaml`, `02-secret.yaml` |
 | 06 | `kubectl scale`, `logs`, `describe` | Feito | secção 4 |
 
 Tabela 7: Conformidade com os slides.
+
+Os exercícios do fim de cada slide são feitos sobre aplicações de demonstração (MedicalControl, carShop, MyBank, inventory). A tabela seguinte mostra a que corresponde cada um no BikeShop.
+
+| Slide | Exercício | No BikeShop |
+|---|---|---|
+| 02 | Repositório simulado e, depois, uma base de dados real | PostgreSQL; H2 nos testes |
+| 02 | Registar quem acedeu aos dados e quando | Só o quando (`@CreatedDate`/`@LastModifiedDate`); não há utilizadores com sessão |
+| 03 | PUT e DELETE | `PUT/DELETE /api/pecas/{referencia}`, `PUT /api/stock/{referencia}` |
+| 03 | Endpoint com query própria (JPQL ou nativa) | `GET /api/pecas?categoria=&precoMax=` |
+| 03 | Testes unitários para os vários endpoints | `@WebMvcTest` nos 4 controllers |
+| 04 | Uma BD por serviço em Docker, com ferramenta de gestão | 4 PostgreSQL e o Adminer |
+| 04 | Validar condições antes de mudar o estado | SAGA: reserva de stock, pagamento e compensação |
+| 04 | OpenFeign entre serviços, com testes | `CatalogoClient` e `CatalogoClientTest` |
+| 04 | Logging em ficheiro, sem detalhe técnico para o cliente; erros por email | Ficheiro e `ErroHandler`; o email fica de fora |
+| 04 | Segunda instância e balanceamento pelo Postman | Catálogo com 2 réplicas; o log diz a instância |
+| 04 | Imagem Docker de cada serviço e o projeto todo no Minikube | Dockerfiles e `k8s/` |
+| 05 | Persistência nos serviços e rastreabilidade entre eles | Reservas e pagamentos guardam o `encomendaId` |
+| 05 | Producer e consumer nos dois sentidos | Mensagens de ida e volta da SAGA (Tabela 2) |
+| 05 | Decisão automática e assíncrona | Stock e pagamentos reagem às mensagens |
+| 06 | Novo endpoint, versão 2.0 no Docker Hub e no Minikube | `GET /api/pecas/marca/{marca}`, `k8s-atualizar.ps1` |
+| 06 | Serviço com duas réplicas; aumentar e acompanhar com kubectl | Catálogo com 2 réplicas, `kubectl scale` (secção 4) |
+
+Tabela 8: Exercícios dos slides.
 
 **Fora de âmbito, de propósito.** Os slides só os mencionam, sem pedir que se apliquem; ficam de fora para o projeto continuar pequeno:
 

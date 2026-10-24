@@ -24,7 +24,7 @@ const SERVICOS = [
         resumo: 'Categorias e peças para bicicletas elétricas, com preço e compatibilidade.',
         responsabilidade: [
             'Guardar as categorias (BAT, MOT, TRV…) e as peças de cada uma.',
-            'Listar as peças, com filtro opcional por categoria e preço máximo (query JPQL própria).',
+            'Listar as peças, com filtro opcional por categoria e preço máximo (query JPQL própria), ou as de uma marca.',
             'Dar o nome e o preço de uma peça à encomenda, que o chama por Feign.',
             'Criar, alterar e apagar peças.',
         ],
@@ -38,6 +38,7 @@ const SERVICOS = [
         endpoints: [
             ['GET', '/api/categorias', 'Listar as categorias'],
             ['GET', '/api/pecas?categoria=&precoMax=', 'Listar as peças (filtros opcionais)'],
+            ['GET', '/api/pecas/marca/{marca}', 'Peças de uma marca, da mais barata para a mais cara (versão 2.0)'],
             ['GET', '/api/pecas/{referencia}', 'Consultar uma peça'],
             ['POST', '/api/pecas', 'Criar uma peça (201)'],
             ['PUT', '/api/pecas/{referencia}', 'Alterar uma peça'],
@@ -54,8 +55,8 @@ const SERVICOS = [
             'Erros em JSON com o nome do serviço: { servico, estado, mensagem }; peça inexistente dá 404.',
         ],
         testes: [
-            ['CatalogoControllerTest', 4, '@WebMvcTest: landing, uma peça, 404 com o nome do serviço e 400 sem preço'],
-            ['PecaRepositoryTest', 2, '@DataJpaTest: a query JPQL por categoria até um preço e a auditoria das datas'],
+            ['CatalogoControllerTest', 5, '@WebMvcTest: landing, uma peça, as peças de uma marca, 404 com o nome do serviço e 400 sem preço'],
+            ['PecaRepositoryTest', 3, '@DataJpaTest: a query JPQL por categoria até um preço, a procura por marca e a auditoria das datas'],
             ['CatalogoServiceTest', 1, 'O ModelMapper preenche a categoria no DTO'],
         ],
         verificar: ['curl.exe -s http://localhost:9080/api/pecas/BAT-500', 'JSON da bateria BAT-500 com o preço'],
@@ -204,6 +205,7 @@ const SERVICOS = [
             'Publica só depois do commit, para o stock nunca receber uma encomenda que não ficou gravada.',
         ],
         testes: [
+            ['CatalogoClientTest', 4, 'O Feign a sério contra duas instâncias falsas do catálogo: o JSON, o balanceamento, o 404 e a sua tradução em 400'],
             ['EncomendasControllerTest', 6, '@WebMvcTest: landing, POST 202, email inválido, sem linhas, JSON mal formado (400) e 404'],
             ['EncomendaTest', 6, 'O agregado: total, quantidade zero, caminho feliz, transições proibidas e repetições'],
             ['EncomendasServiceTest', 6, 'Unitários: preço do catálogo, peça inexistente, cada resposta da SAGA e a compensação'],

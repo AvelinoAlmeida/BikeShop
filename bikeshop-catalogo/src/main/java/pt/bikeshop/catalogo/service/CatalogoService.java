@@ -36,6 +36,10 @@ public class CatalogoService {
         return lista.stream().map(this::paraDto).toList();
     }
 
+    public List<PecaDto> listarPecasDaMarca(String marca) {
+        return pecas.findByMarcaIgnoreCaseOrderByPrecoAsc(marca).stream().map(this::paraDto).toList();
+    }
+
     public PecaDto obterPeca(String referencia) {
         return paraDto(procurar(referencia));
     }

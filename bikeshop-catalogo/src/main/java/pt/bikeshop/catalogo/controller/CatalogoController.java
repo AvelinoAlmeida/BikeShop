@@ -44,6 +44,12 @@ public class CatalogoController {
         return catalogo.listarPecas(categoria, precoMax);
     }
 
+    /** Versão 2.0 (exercício do slide 06): /api/pecas/marca/Bosch, da mais barata para a mais cara. */
+    @GetMapping("/pecas/marca/{marca}")
+    public List<PecaDto> pecasDaMarca(@PathVariable String marca) {
+        return catalogo.listarPecasDaMarca(marca);
+    }
+
     @GetMapping("/pecas/{referencia}")
     public PecaDto peca(@PathVariable String referencia) {
         log.info("Peça {} pedida; respondeu a instância {}", referencia, INSTANCIA);

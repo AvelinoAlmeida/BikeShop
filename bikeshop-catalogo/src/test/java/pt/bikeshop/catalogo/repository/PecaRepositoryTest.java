@@ -38,6 +38,24 @@ class PecaRepositoryTest {
     }
 
     @Test
+    void procuraPorMarcaSemDistinguirMaiusculas() {
+        Categoria bat = categorias.save(Categoria.builder().codigo("BAT").nome("Baterias").build());
+        Peca shimano = peca("BAT-630", "759.00", bat);
+        shimano.setMarca("Shimano");
+        pecas.save(shimano);
+        Peca bosch750 = peca("BAT-750", "899.00", bat);
+        bosch750.setMarca("Bosch");
+        pecas.save(bosch750);
+        Peca bosch500 = peca("BAT-500", "649.00", bat);
+        bosch500.setMarca("Bosch");
+        pecas.save(bosch500);
+
+        List<Peca> resultado = pecas.findByMarcaIgnoreCaseOrderByPrecoAsc("bosch");
+
+        assertThat(resultado).extracting(Peca::getReferencia).containsExactly("BAT-500", "BAT-750");
+    }
+
+    @Test
     void auditoriaPreencheAsDatas() {
         Categoria bat = categorias.save(Categoria.builder().codigo("BAT").nome("Baterias").build());
 
