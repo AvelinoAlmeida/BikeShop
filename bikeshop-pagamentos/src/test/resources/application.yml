@@ -1,0 +1,17 @@
+# Testes: H2 em memória, sem Eureka e sem ligar ao RabbitMQ
+spring:
+  application:
+    name: bikeshop-pagamentos
+  datasource:
+    url: jdbc:h2:mem:pagamentos;DB_CLOSE_DELAY=-1
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
+
+eureka:
+  client:
+    enabled: false

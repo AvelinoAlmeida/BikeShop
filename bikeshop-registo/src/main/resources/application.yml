@@ -1,0 +1,22 @@
+server:
+  port: 9761
+
+spring:
+  application:
+    name: bikeshop-registo
+
+eureka:
+  client:
+    # O próprio registo não se regista nem lê o registo
+    register-with-eureka: false
+    fetch-registry: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true

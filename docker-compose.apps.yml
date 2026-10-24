@@ -1,0 +1,81 @@
+# Os 6 serviços do BikeShop em contentores: grupo bikeshop-apps no Docker Desktop.
+# A infraestrutura (docker-compose.yml) tem de estar a correr antes:
+#   docker compose up -d --wait
+#   .\mvnw.cmd package -DskipTests
+#   docker compose -f docker-compose.apps.yml up -d --build
+# Os serviços chegam à infraestrutura pelo nome do container, na rede bikeshop-rede.
+name: bikeshop-apps
+
+x-servico: &servico
+  restart: unless-stopped
+  depends_on: [bikeshop-registo]
+
+x-ambiente: &ambiente
+  EUREKA_HOST: bikeshop-registo
+  RABBITMQ_HOST: bikeshop-rabbitmq
+  RABBITMQ_PORT: "5672"
+  DB_PORT: "5432"
+
+services:
+  bikeshop-registo:
+    build: { context: ., dockerfile: bikeshop-registo/Dockerfile }
+    image: bikeshop-registo:1.0
+    container_name: bikeshop-registo
+    ports: ["9761:9761"]
+    restart: unless-stopped
+
+  bikeshop-gateway:
+    <<: *servico
+    build: { context: ., dockerfile: bikeshop-gateway/Dockerfile }
+    image: bikeshop-gateway:1.0
+    container_name: bikeshop-gateway
+    ports: ["9080:9080"]
+    environment:
+      EUREKA_HOST: bikeshop-registo
+      RABBITMQ_HOST: bikeshop-rabbitmq
+      RABBITMQ_ADMIN_PORT: "15672"
+
+  bikeshop-catalogo:
+    <<: *servico
+    build: { context: ., dockerfile: bikeshop-catalogo/Dockerfile }
+    image: bikeshop-catalogo:1.0
+    container_name: bikeshop-catalogo
+    ports: ["9081:9081"]
+    environment:
+      <<: *ambiente
+      DB_HOST: bikeshop-postgres-catalogo
+
+  bikeshop-stock:
+    <<: *servico
+    build: { context: ., dockerfile: bikeshop-stock/Dockerfile }
+    image: bikeshop-stock:1.0
+    container_name: bikeshop-stock
+    ports: ["9082:9082"]
+    environment:
+      <<: *ambiente
+      DB_HOST: bikeshop-postgres-stock
+
+  bikeshop-pagamentos:
+    <<: *servico
+    build: { context: ., dockerfile: bikeshop-pagamentos/Dockerfile }
+    image: bikeshop-pagamentos:1.0
+    container_name: bikeshop-pagamentos
+    ports: ["9083:9083"]
+    environment:
+      <<: *ambiente
+      DB_HOST: bikeshop-postgres-pagamentos
+
+  bikeshop-encomendas:
+    <<: *servico
+    build: { context: ., dockerfile: bikeshop-encomendas/Dockerfile }
+    image: bikeshop-encomendas:1.0
+    container_name: bikeshop-encomendas
+    ports: ["9084:9084"]
+    environment:
+      <<: *ambiente
+      DB_HOST: bikeshop-postgres-encomendas
+
+networks:
+  default:
+    name: bikeshop-rede
+    external: true

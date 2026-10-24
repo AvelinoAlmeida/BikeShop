@@ -1,0 +1,3 @@
+# O docker build só precisa do JAR de cada módulo (ADD <módulo>/target/<módulo>.jar)
+**
+!*/target/*.jar

@@ -1,0 +1,9 @@
+* text=auto
+# Correm em Linux (dentro do container ou do WSL): sempre LF
+/mvnw text eol=lf
+Dockerfile text eol=lf
+*.sh text eol=lf
+# Windows
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.png binary

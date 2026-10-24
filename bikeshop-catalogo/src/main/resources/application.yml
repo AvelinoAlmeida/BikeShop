@@ -1,0 +1,37 @@
+# Valores por omissão para correr no anfitrião (bases nas portas 55432 a 55435).
+# Em Docker e no Kubernetes as variáveis DB_HOST, DB_PORT e EUREKA_HOST apontam para os containers.
+server:
+  port: 9081
+
+spring:
+  application:
+    name: bikeshop-catalogo
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:55432}/bikeshop_catalogo
+    username: ${DB_USER:bikeshop}
+    password: ${DB_PASSWORD:bikeshop}
+  jpa:
+    hibernate:
+      ddl-auto: update            # o Hibernate cria e atualiza as tabelas (slide 03)
+    defer-datasource-initialization: true
+    open-in-view: false
+  sql:
+    init:
+      mode: always                # data.sql com as peças de exemplo (só insere o que falta)
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_HOST:localhost}:9761/eureka/
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true

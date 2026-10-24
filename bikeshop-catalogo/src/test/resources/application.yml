@@ -1,0 +1,16 @@
+# Testes: H2 em memória, sem Eureka e sem data.sql (que é SQL do PostgreSQL)
+spring:
+  application:
+    name: bikeshop-catalogo
+  datasource:
+    url: jdbc:h2:mem:catalogo;DB_CLOSE_DELAY=-1
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  sql:
+    init:
+      mode: never
+
+eureka:
+  client:
+    enabled: false

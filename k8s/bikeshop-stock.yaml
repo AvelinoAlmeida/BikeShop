@@ -1,0 +1,71 @@
+# bikeshop-stock: Stock e reservas
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bikeshop-stock
+  namespace: bikeshop
+  labels:
+    app: bikeshop-stock
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bikeshop-stock
+  template:
+    metadata:
+      labels:
+        app: bikeshop-stock
+    spec:
+      containers:
+        - name: bikeshop-stock
+          image: bikeshop-stock:1.0
+          imagePullPolicy: Never          # imagem carregada com minikube image load
+          ports:
+            - containerPort: 9082
+          envFrom:
+            - configMapRef:
+                name: bikeshop-config
+            - secretRef:
+                name: bikeshop-secret
+          env:
+            - name: DB_PORT
+              value: "55433"
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:MaxRAMPercentage=75"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 384Mi
+            limits:
+              memory: 512Mi
+          # O Spring demora a arrancar: a startupProbe dá até 5 minutos antes de a liveness contar
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 9082
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 9082
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 9082
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bikeshop-stock
+  namespace: bikeshop
+spec:
+  type: ClusterIP
+  selector:
+    app: bikeshop-stock
+  ports:
+    - name: http
+      port: 9082
+      targetPort: 9082

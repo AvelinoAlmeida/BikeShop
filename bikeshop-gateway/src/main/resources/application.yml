@@ -1,0 +1,63 @@
+server:
+  port: 9080
+
+spring:
+  application:
+    name: bikeshop-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            # Cada caminho público vai para o serviço com o mesmo nome no Eureka
+            - id: catalogo
+              uri: lb://bikeshop-catalogo
+              predicates:
+                - Path=/api/pecas/**,/api/categorias/**
+            - id: stock
+              uri: lb://bikeshop-stock
+              predicates:
+                - Path=/api/stock/**
+            - id: pagamentos
+              uri: lb://bikeshop-pagamentos
+              predicates:
+                - Path=/api/pagamentos/**
+            - id: encomendas
+              uri: lb://bikeshop-encomendas
+              predicates:
+                - Path=/api/encomendas/**
+            # Só leitura, para a página Bastidores: o registo do Eureka...
+            - id: registo
+              uri: http://${EUREKA_HOST:localhost}:9761
+              predicates:
+                - Path=/bastidores/registo
+                - Method=GET
+              filters:
+                - SetPath=/eureka/apps
+                - SetRequestHeader=Accept, application/json
+            # ...e as filas do RabbitMQ (API de gestão, com as credenciais de laboratório)
+            - id: filas
+              uri: http://${RABBITMQ_HOST:localhost}:${RABBITMQ_ADMIN_PORT:15673}
+              predicates:
+                - Path=/bastidores/filas
+                - Method=GET
+              filters:
+                - SetPath=/api/queues
+                - SetRequestHeader=Authorization, Basic ${RABBITMQ_BASIC:YmlrZXNob3A6YmlrZXNob3A=}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_HOST:localhost}:9761/eureka/
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true

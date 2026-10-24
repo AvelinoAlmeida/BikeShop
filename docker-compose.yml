@@ -1,0 +1,99 @@
+# Infraestrutura do BikeShop: grupo bikeshop-infra no Docker Desktop.
+#   docker compose up -d --wait     # arranca e espera que fique tudo healthy
+#   docker compose down             # para (os volumes bikeshop-*-dados ficam)
+#   docker compose down -v          # para e apaga os dados (voltam os dados de exemplo)
+# Portas diferentes das habituais para poder correr ao lado de outros projetos.
+name: bikeshop-infra
+
+x-postgres: &postgres
+  image: postgres:17
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U bikeshop -d $${POSTGRES_DB}"]
+    interval: 5s
+    timeout: 3s
+    retries: 10
+  restart: unless-stopped
+
+x-credenciais: &credenciais
+  POSTGRES_USER: bikeshop
+  POSTGRES_PASSWORD: bikeshop
+
+services:
+  bikeshop-postgres-catalogo:
+    <<: *postgres
+    container_name: bikeshop-postgres-catalogo
+    labels:
+      bikeshop.descricao: "Base de dados do catálogo (peças e categorias)"
+    environment:
+      <<: *credenciais
+      POSTGRES_DB: bikeshop_catalogo
+    ports: ["55432:5432"]
+    volumes: ["bikeshop-postgres-catalogo-dados:/var/lib/postgresql/data"]
+
+  bikeshop-postgres-stock:
+    <<: *postgres
+    container_name: bikeshop-postgres-stock
+    labels:
+      bikeshop.descricao: "Base de dados do stock (quantidades e reservas)"
+    environment:
+      <<: *credenciais
+      POSTGRES_DB: bikeshop_stock
+    ports: ["55433:5432"]
+    volumes: ["bikeshop-postgres-stock-dados:/var/lib/postgresql/data"]
+
+  bikeshop-postgres-pagamentos:
+    <<: *postgres
+    container_name: bikeshop-postgres-pagamentos
+    labels:
+      bikeshop.descricao: "Base de dados dos pagamentos"
+    environment:
+      <<: *credenciais
+      POSTGRES_DB: bikeshop_pagamentos
+    ports: ["55434:5432"]
+    volumes: ["bikeshop-postgres-pagamentos-dados:/var/lib/postgresql/data"]
+
+  bikeshop-postgres-encomendas:
+    <<: *postgres
+    container_name: bikeshop-postgres-encomendas
+    labels:
+      bikeshop.descricao: "Base de dados das encomendas"
+    environment:
+      <<: *credenciais
+      POSTGRES_DB: bikeshop_encomendas
+    ports: ["55435:5432"]
+    volumes: ["bikeshop-postgres-encomendas-dados:/var/lib/postgresql/data"]
+
+  bikeshop-rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: bikeshop-rabbitmq
+    labels:
+      bikeshop.descricao: "Mensagens da SAGA (consola em http://localhost:15673, bikeshop/bikeshop)"
+    environment:
+      RABBITMQ_DEFAULT_USER: bikeshop
+      RABBITMQ_DEFAULT_PASS: bikeshop
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    volumes: ["bikeshop-rabbitmq-dados:/var/lib/rabbitmq"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+networks:
+  default:
+    name: bikeshop-rede
+
+volumes:
+  bikeshop-postgres-catalogo-dados:
+    name: bikeshop-postgres-catalogo-dados
+  bikeshop-postgres-stock-dados:
+    name: bikeshop-postgres-stock-dados
+  bikeshop-postgres-pagamentos-dados:
+    name: bikeshop-postgres-pagamentos-dados
+  bikeshop-postgres-encomendas-dados:
+    name: bikeshop-postgres-encomendas-dados
+  bikeshop-rabbitmq-dados:
+    name: bikeshop-rabbitmq-dados

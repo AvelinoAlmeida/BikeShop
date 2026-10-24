@@ -1,0 +1,13 @@
+# Configuração comum. A infraestrutura (PostgreSQL e RabbitMQ) fica no Docker Compose, fora do cluster
+# (slide 06: a persistência normalmente fica fora do Kubernetes); os pods chegam-lhe por host.minikube.internal.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bikeshop-config
+  namespace: bikeshop
+data:
+  EUREKA_HOST: "bikeshop-registo"
+  DB_HOST: "host.minikube.internal"
+  RABBITMQ_HOST: "host.minikube.internal"
+  RABBITMQ_PORT: "5673"
+  RABBITMQ_ADMIN_PORT: "15673"

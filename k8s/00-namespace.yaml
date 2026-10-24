@@ -1,0 +1,5 @@
+# Namespace próprio do BikeShop no Minikube (perfil bikeshop-minikube)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bikeshop
