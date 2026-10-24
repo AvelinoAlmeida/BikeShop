@@ -1,0 +1,313 @@
+'use strict';
+
+// Conteúdo das páginas: o grupo, as fichas dos 6 microsserviços, a SAGA e as ferramentas.
+// Cada cor é uma equipa com o nome do seu domínio (equipa). O campo "nome" é o formando responsável,
+// mostrado só no rodapé: para pôr os nomes basta alterá-lo aqui.
+
+const GRUPO = [
+    { n: 1, nome: 'Elemento 1', equipa: 'Catálogo', cor: 'm1', servicos: ['catalogo'] },
+    { n: 2, nome: 'Elemento 2', equipa: 'Encomenda', cor: 'm2', servicos: ['encomendas'] },
+    { n: 3, nome: 'Elemento 3', equipa: 'Armazém', cor: 'm3', servicos: ['stock'] },
+    { n: 4, nome: 'Elemento 4', equipa: 'Pagamento', cor: 'm4', servicos: ['pagamentos', 'gateway', 'registo'] },
+];
+
+// Cada ficha segue a mesma ordem de secções na página servico.html?id=<id>.
+// probe: pedido barato pela gateway para saber se o serviço responde (null para os de infraestrutura).
+const SERVICOS = [
+    {
+        id: 'catalogo',
+        nome: 'bikeshop-catalogo',
+        porta: 9081,
+        tipo: 'negócio',
+        bd: 'PostgreSQL bikeshop_catalogo (55432)',
+        probe: '/pecas/landing',
+        resumo: 'Categorias e peças para bicicletas elétricas, com preço e compatibilidade.',
+        responsabilidade: [
+            'Guardar as categorias (BAT, MOT, TRV…) e as peças de cada uma.',
+            'Listar as peças, com filtro opcional por categoria e preço máximo (query JPQL própria).',
+            'Dar o nome e o preço de uma peça à encomenda, que o chama por Feign.',
+            'Criar, alterar e apagar peças.',
+        ],
+        tecnologias: ['Spring Web', 'Spring Data JPA', 'PostgreSQL', 'ModelMapper', 'Auditoria JPA', 'Bean Validation', 'Eureka Client'],
+        entidades: [
+            { nome: 'Categoria', atributos: ['id: Long', 'codigo (único)', 'nome', 'descricao'] },
+            { nome: 'Peca', atributos: ['id: Long', 'referencia (única)', 'nome, marca', 'descricao', 'compatibilidade', 'preco', 'categoria', 'criadoEm, alteradoEm'] },
+        ],
+        relacao: 'Uma categoria tem várias peças (1:N). Os dados de exemplo vêm do data.sql.',
+        estados: [],
+        endpoints: [
+            ['GET', '/api/categorias', 'Listar as categorias'],
+            ['GET', '/api/pecas?categoria=&precoMax=', 'Listar as peças (filtros opcionais)'],
+            ['GET', '/api/pecas/{referencia}', 'Consultar uma peça'],
+            ['POST', '/api/pecas', 'Criar uma peça (201)'],
+            ['PUT', '/api/pecas/{referencia}', 'Alterar uma peça'],
+            ['DELETE', '/api/pecas/{referencia}', 'Apagar uma peça (204)'],
+            ['GET', '/api/pecas/landing', 'Confirmar que o serviço responde'],
+        ],
+        publica: [],
+        consome: [],
+        chama: [],
+        chamadoPor: ['gateway', 'encomendas'],
+        decisoes: [
+            'Não fala por mensagens: a encomenda pede-lhe o preço por HTTP (Feign), porque precisa da resposta antes de gravar.',
+            'Entidades nunca saem do serviço: o controller devolve DTOs feitos pelo ModelMapper.',
+            'Erros em JSON com o nome do serviço: { servico, estado, mensagem }; peça inexistente dá 404.',
+        ],
+        testes: [
+            ['CatalogoControllerTest', 4, '@WebMvcTest: landing, uma peça, 404 com o nome do serviço e 400 sem preço'],
+            ['PecaRepositoryTest', 2, '@DataJpaTest: a query JPQL por categoria até um preço e a auditoria das datas'],
+            ['CatalogoServiceTest', 1, 'O ModelMapper preenche a categoria no DTO'],
+        ],
+        verificar: ['curl.exe -s http://localhost:9080/api/pecas/BAT-500', 'JSON da bateria BAT-500 com o preço'],
+    },
+    {
+        id: 'stock',
+        nome: 'bikeshop-stock',
+        porta: 9082,
+        tipo: 'negócio',
+        bd: 'PostgreSQL bikeshop_stock (55433)',
+        probe: '/stock/landing',
+        resumo: 'Quantidades em armazém e reservas de cada encomenda: tudo ou nada.',
+        responsabilidade: [
+            'Guardar a quantidade de cada peça e quanto dela está reservado.',
+            'Reservar as linhas de uma encomenda: ou todas ou nenhuma.',
+            'Confirmar a reserva quando a encomenda é paga (as unidades saem do armazém).',
+            'Libertar a reserva quando o pagamento é recusado (compensação).',
+        ],
+        tecnologias: ['Spring Web', 'Spring Data JPA', 'PostgreSQL', 'RabbitMQ', 'ModelMapper', 'Eureka Client'],
+        entidades: [
+            { nome: 'Stock', atributos: ['id: Long', 'referencia (única)', 'quantidade', 'reservada'] },
+            { nome: 'Reserva', atributos: ['id: Long', 'encomendaId: UUID', 'referencia', 'quantidade', 'estado', 'criadaEm'] },
+        ],
+        relacao: 'Uma encomenda tem uma reserva por linha. Livre = quantidade − reservada.',
+        estados: [{ nome: 'Reserva', valores: ['ATIVA', 'CONFIRMADA', 'LIBERTADA'] }],
+        endpoints: [
+            ['GET', '/api/stock', 'Listar o stock (com livre)'],
+            ['GET', '/api/stock/{referencia}', 'Stock de uma peça'],
+            ['PUT', '/api/stock/{referencia}', 'Repor a quantidade em armazém'],
+            ['GET', '/api/stock/reservas/{encomendaId}', 'Reservas de uma encomenda'],
+            ['GET', '/api/stock/landing', 'Confirmar que o serviço responde'],
+        ],
+        publica: [
+            ['stock.reservado', 'encomendas', 'todas as linhas reservadas'],
+            ['stock.insuficiente', 'encomendas', 'falta alguma peça; nada fica reservado'],
+        ],
+        consome: [
+            ['stock.reservar', 'encomendas', 'reservar as linhas'],
+            ['stock.confirmar', 'encomendas', 'encomenda paga: dar baixa'],
+            ['stock.libertar', 'encomendas', 'compensação: devolver as unidades'],
+        ],
+        chama: [],
+        chamadoPor: ['gateway'],
+        decisoes: [
+            'Tudo ou nada: verifica todas as linhas antes de reservar alguma.',
+            'Idempotente: um stock.reservar repetido para a mesma encomenda não reserva outra vez.',
+            'Publica só depois do commit (TransactionSynchronization), para não anunciar uma reserva que não ficou gravada.',
+        ],
+        testes: [
+            ['StockServiceTest', 5, 'Unitários: tudo ou nada, mensagem repetida, confirmar e libertar'],
+            ['ReservaRepositoryTest', 1, '@DataJpaTest: reservas por encomenda'],
+        ],
+        verificar: ['curl.exe -s http://localhost:9080/api/stock', 'Lista com quantidade, reservada e livre de cada peça'],
+    },
+    {
+        id: 'pagamentos',
+        nome: 'bikeshop-pagamentos',
+        porta: 9083,
+        tipo: 'negócio',
+        bd: 'PostgreSQL bikeshop_pagamentos (55434)',
+        probe: '/pagamentos/landing',
+        resumo: 'Pagamento simulado de cada encomenda: fica pendente até alguém aprovar ou recusar.',
+        responsabilidade: [
+            'Criar o pagamento PENDENTE quando a encomenda o pede (pagamento.criar).',
+            'Simular a resposta do banco: aprovar ou recusar, por pedido REST.',
+            'Avisar a encomenda do resultado (pagamento.aprovado ou pagamento.recusado).',
+        ],
+        tecnologias: ['Spring Web', 'Spring Data JPA', 'PostgreSQL', 'RabbitMQ', 'ModelMapper', 'Eureka Client'],
+        entidades: [
+            { nome: 'Pagamento', atributos: ['id: UUID', 'encomendaId: UUID (único)', 'valor', 'estado', 'criadoEm, alteradoEm'] },
+        ],
+        relacao: 'Um pagamento por encomenda (encomendaId único).',
+        estados: [{ nome: 'Pagamento', valores: ['PENDENTE', 'APROVADO', 'RECUSADO'] }],
+        endpoints: [
+            ['GET', '/api/pagamentos', 'Listar os pagamentos'],
+            ['GET', '/api/pagamentos/encomenda/{id}', 'Pagamento de uma encomenda'],
+            ['POST', '/api/pagamentos/encomenda/{id}/aprovar', 'Simular banco: aprovar'],
+            ['POST', '/api/pagamentos/encomenda/{id}/recusar', 'Simular banco: recusar'],
+            ['GET', '/api/pagamentos/landing', 'Confirmar que o serviço responde'],
+        ],
+        publica: [
+            ['pagamento.aprovado', 'encomendas', 'a encomenda fica PAGA'],
+            ['pagamento.recusado', 'encomendas', 'a encomenda é cancelada e compensa'],
+        ],
+        consome: [
+            ['pagamento.criar', 'encomendas', 'criar o pagamento PENDENTE'],
+        ],
+        chama: [],
+        chamadoPor: ['gateway'],
+        decisoes: [
+            'Não há banco nem cartão: o pagamento espera pela pessoa, que decide na loja.',
+            'Idempotente: um pagamento.criar repetido não cria um segundo pagamento.',
+            'Só um pagamento PENDENTE pode ser aprovado ou recusado.',
+        ],
+        testes: [
+            ['PagamentosServiceTest', 5, 'Unitários: criar, mensagem repetida, aprovar, recusar e não pagar duas vezes'],
+        ],
+        verificar: ['curl.exe -s http://localhost:9080/api/pagamentos', 'Lista dos pagamentos (vazia num arranque limpo)'],
+    },
+    {
+        id: 'encomendas',
+        nome: 'bikeshop-encomendas',
+        porta: 9084,
+        tipo: 'negócio',
+        bd: 'PostgreSQL bikeshop_encomendas (55435)',
+        probe: '/encomendas/landing',
+        resumo: 'Encomendas da loja; orquestra a SAGA entre o stock e os pagamentos.',
+        responsabilidade: [
+            'Receber a encomenda e gravá-la PENDENTE com os nomes e preços do catálogo (Feign).',
+            'Conduzir a SAGA: pedir a reserva, pedir o pagamento, confirmar ou compensar.',
+            'Guardar o estado da encomenda e o motivo quando é cancelada.',
+        ],
+        tecnologias: ['Spring Web', 'Spring Data JPA', 'PostgreSQL', 'RabbitMQ', 'OpenFeign', 'LoadBalancer', 'ModelMapper', 'Eureka Client'],
+        entidades: [
+            { nome: 'Encomenda', atributos: ['id: UUID', 'clienteNome', 'clienteEmail', 'estado', 'total', 'motivo', 'linhas', 'criadoEm, alteradoEm'] },
+            { nome: 'LinhaEncomenda', atributos: ['id: Long', 'encomenda', 'referencia', 'nome', 'precoUnitario', 'quantidade', 'subtotal'] },
+        ],
+        relacao: 'Uma encomenda tem várias linhas (1:N), gravadas em conjunto (agregado).',
+        estados: [{ nome: 'Encomenda', valores: ['PENDENTE', 'RESERVADA', 'PAGA', 'CANCELADA'] }],
+        endpoints: [
+            ['GET', '/api/encomendas', 'Listar as encomendas'],
+            ['GET', '/api/encomendas/{id}', 'Consultar uma encomenda'],
+            ['POST', '/api/encomendas', 'Criar uma encomenda (202, PENDENTE)'],
+            ['GET', '/api/encomendas/landing', 'Confirmar que o serviço responde'],
+        ],
+        publica: [
+            ['stock.reservar', 'stock', 'reservar as linhas'],
+            ['pagamento.criar', 'pagamentos', 'stock reservado: pedir o pagamento'],
+            ['stock.confirmar', 'stock', 'pagamento aprovado: dar baixa'],
+            ['stock.libertar', 'stock', 'pagamento recusado: compensação'],
+        ],
+        consome: [
+            ['stock.reservado', 'stock', 'passa a RESERVADA'],
+            ['stock.insuficiente', 'stock', 'passa a CANCELADA'],
+            ['pagamento.aprovado', 'pagamentos', 'passa a PAGA'],
+            ['pagamento.recusado', 'pagamentos', 'passa a CANCELADA'],
+        ],
+        chama: ['catalogo'],
+        chamadoPor: ['gateway'],
+        decisoes: [
+            'SAGA orquestrada: só a encomenda sabe a ordem dos passos; o stock e os pagamentos só respondem.',
+            'Responde 202: a encomenda fica PENDENTE e avança sozinha quando chegam as mensagens.',
+            'Os estados só avançam pela ordem certa (marcarReservada, marcarPaga, cancelar); uma mensagem repetida não faz nada.',
+            'Publica só depois do commit, para o stock nunca receber uma encomenda que não ficou gravada.',
+        ],
+        testes: [
+            ['EncomendaTest', 6, 'O agregado: total, quantidade zero, caminho feliz, transições proibidas e repetições'],
+            ['EncomendasServiceTest', 6, 'Unitários: preço do catálogo, peça inexistente, cada resposta da SAGA e a compensação'],
+            ['EncomendaRepositoryTest', 1, '@DataJpaTest: gravar a encomenda com as linhas'],
+        ],
+        verificar: ['curl.exe -s http://localhost:9080/api/encomendas', 'As 50 encomendas mais recentes'],
+    },
+    {
+        id: 'gateway',
+        nome: 'bikeshop-gateway',
+        porta: 9080,
+        tipo: 'infraestrutura',
+        bd: 'sem base de dados',
+        probe: null,
+        resumo: 'Entrada única: encaminha /api/** para os serviços e serve estas páginas.',
+        responsabilidade: [
+            'Encaminhar cada caminho público para o serviço com o mesmo nome no Eureka (lb://).',
+            'Servir a interface web (src/main/resources/static), na mesma origem que a API: sem CORS.',
+            'Dar ao browser uma leitura do Eureka e das filas do RabbitMQ, só para estas páginas.',
+        ],
+        tecnologias: ['Spring Cloud Gateway (WebFlux)', 'LoadBalancer', 'Eureka Client', 'Actuator'],
+        entidades: [],
+        estados: [],
+        rotas: [
+            ['/api/pecas/**, /api/categorias/**', 'catalogo', '/api/pecas/landing'],
+            ['/api/stock/**', 'stock', '/api/stock/landing'],
+            ['/api/pagamentos/**', 'pagamentos', '/api/pagamentos/landing'],
+            ['/api/encomendas/**', 'encomendas', '/api/encomendas/landing'],
+            ['/bastidores/registo', 'registo', '/bastidores/registo'],
+            ['/bastidores/filas', 'RabbitMQ', '/bastidores/filas'],
+        ],
+        endpoints: [
+            ['*', '/api/**', 'Encaminhado para o serviço (ver Rotas)'],
+            ['GET', '/bastidores/registo', 'Eureka /eureka/apps em JSON'],
+            ['GET', '/bastidores/filas', 'API de gestão do RabbitMQ /api/queues'],
+            ['GET', '/', 'Esta interface'],
+        ],
+        publica: [],
+        consome: [],
+        chama: ['catalogo', 'stock', 'pagamentos', 'encomendas'],
+        chamadoPor: ['browser'],
+        decisoes: [
+            'O browser só fala com a gateway: os serviços não estão expostos à página.',
+            'As rotas de leitura do Eureka e do RabbitMQ aceitam só GET.',
+        ],
+        testes: [],
+        verificar: ['curl.exe -s -o NUL -w "%{http_code}" http://localhost:9080/', '200'],
+    },
+    {
+        id: 'registo',
+        nome: 'bikeshop-registo',
+        porta: 9761,
+        tipo: 'infraestrutura',
+        bd: 'sem base de dados',
+        probe: null,
+        resumo: 'Eureka: onde cada serviço se regista e onde a gateway e o Feign os encontram.',
+        responsabilidade: [
+            'Manter a lista de instâncias ativas de cada serviço.',
+            'Permitir que a gateway e a encomenda (Feign) chamem os serviços pelo nome.',
+        ],
+        tecnologias: ['Spring Cloud Netflix Eureka Server'],
+        entidades: [],
+        estados: [],
+        endpoints: [
+            ['GET', '/', 'Painel do Eureka'],
+            ['GET', '/eureka/apps', 'Aplicações registadas'],
+        ],
+        publica: [],
+        consome: [],
+        chama: [],
+        chamadoPor: ['gateway', 'encomendas'],
+        decisoes: [
+            'Arranca primeiro: os outros serviços registam-se nele ao arrancar.',
+            'Não se regista a si próprio.',
+        ],
+        testes: [],
+        verificar: ['curl.exe -s -H "Accept: application/json" http://localhost:9761/eureka/apps', 'JSON com as aplicações BIKESHOP-*'],
+    },
+];
+
+// Passos da SAGA, na visão geral.
+const SAGA = [
+    { label: 'Encomenda criada', who: 'encomendas · PENDENTE', svc: 'encomendas' },
+    { label: 'Stock reservado', who: 'stock → encomendas · RESERVADA', svc: 'stock' },
+    { label: 'Pagamento pedido', who: 'encomendas → pagamentos · PENDENTE', svc: 'pagamentos' },
+    { label: 'Pagamento decidido', who: 'pagamentos · APROVADO ou RECUSADO', svc: 'pagamentos' },
+    { label: 'Encomenda fechada', who: 'encomendas · PAGA ou CANCELADA', svc: 'encomendas' },
+    { label: 'Stock acertado', who: 'stock · confirmar ou libertar', svc: 'stock' },
+];
+
+// Quem consome cada fila do RabbitMQ (o prefixo do nome da fila).
+const CONSUMIDOR = { stock: 'stock', pagamentos: 'pagamentos', encomendas: 'encomendas' };
+
+// Ferramentas externas, no botão "Ferramentas" do cabeçalho. icon: conteúdo de um SVG 24x24 com traço;
+// uma ferramenta com links tem um endereço por serviço em vez de url.
+const FERRAMENTAS = [
+    { id: 'eureka', nome: 'Eureka', url: 'http://localhost:9761', cor: '#22c55e',
+      faz: 'Registo de serviços: que instâncias estão ativas e em que porta.',
+      nota: 'sem login',
+      icon: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2"/>' },
+    { id: 'rabbitmq', nome: 'RabbitMQ', url: 'http://localhost:15673', cor: '#ff6600',
+      faz: 'Mensagens da SAGA: a exchange bikeshop.eventos, as filas e os consumidores.',
+      nota: 'login bikeshop / bikeshop',
+      icon: '<rect x="3" y="5" width="18" height="5" rx="1.5"/><rect x="3" y="14" width="18" height="5" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01M11 7.5h6M11 16.5h6"/>' },
+    { id: 'landing', nome: 'Landing', cor: '#38bdf8',
+      faz: 'Cada serviço de negócio responde com o seu nome, pela gateway.',
+      nota: 'pela gateway, porta 9080',
+      icon: '<path d="M4 12h16M14 6l6 6-6 6"/>',
+      links: SERVICOS.filter((s) => s.probe).map((s) => ({ nome: s.id, url: `/api${s.probe}` })) },
+];

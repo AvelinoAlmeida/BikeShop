@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BikeShop · Loja</title>
+    <meta name="description" content="Loja do BikeShop: catálogo de peças, cesto e a SAGA da encomenda em tempo real.">
+    <link rel="icon" href="img/logo.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="css/bikeshop.css">
+    <script>try { const t = localStorage.getItem('bikeshop.theme'); if (t) document.documentElement.dataset.theme = t; } catch { }</script>
+</head>
+<body data-page="loja">
+
+<main id="conteudo" class="page">
+
+<section class="page-head">
+    <div>
+        <p class="eyebrow">Demonstração ponta a ponta</p>
+        <h1>Loja</h1>
+        <p class="lead">Peças para a tua e-bike. Os preços vêm do catálogo e o stock é o do armazém, em tempo real. Cada painel indica os microsserviços que lhe respondem; depois de encomendar, a linha temporal mostra a SAGA a avançar.</p>
+    </div>
+</section>
+
+<div class="layout">
+
+    <div class="main-col">
+        <section class="panel" aria-labelledby="catalog-title">
+            <div class="panel-head">
+                <h2 id="catalog-title">Catálogo</h2>
+                <span class="tags"><a class="tag c-m1" href="servico.html?id=catalogo">catalogo</a><a class="tag c-m3" href="servico.html?id=stock">stock</a></span>
+            </div>
+            <div id="categories" class="chips" role="group" aria-label="Categorias"></div>
+            <div id="products" class="grid"><p class="muted">A carregar o catálogo…</p></div>
+        </section>
+    </div>
+
+    <aside class="side">
+
+        <section class="panel" aria-labelledby="cart-title">
+            <div class="panel-head">
+                <h2 id="cart-title">Cesto</h2>
+                <span class="tags"><a class="tag c-m2" href="servico.html?id=encomendas">encomendas</a></span>
+            </div>
+            <ul id="cart" class="cart"><li class="muted">Vazio. Adicione peças do catálogo.</li></ul>
+            <div class="cart-total"><span>Total (sem portes)</span><strong id="cart-total">0,00 €</strong></div>
+            <div class="form">
+                <label>Nome <input id="f-nome" autocomplete="name"></label>
+                <label>Email <input id="f-email" type="email" autocomplete="email"></label>
+            </div>
+            <div class="actions">
+                <button id="btn-order" class="primary" type="button" disabled>Encomendar</button>
+                <button id="btn-clear-cart" class="secondary" type="button" disabled>Limpar</button>
+            </div>
+        </section>
+
+        <section class="panel" aria-labelledby="saga-title">
+            <div class="panel-head">
+                <h2 id="saga-title">Encomenda</h2>
+                <span class="tags"><a class="tag c-m2" href="servico.html?id=encomendas">encomendas</a><a class="tag c-m3" href="servico.html?id=stock">stock</a><a class="tag c-m4" href="servico.html?id=pagamentos">pagamentos</a></span>
+            </div>
+            <div id="order-empty" class="muted">Escolha uma encomenda em baixo ou faça uma no catálogo.</div>
+            <div id="order" hidden>
+                <div class="order-head">
+                    <div>
+                        <strong id="o-cliente"></strong>
+                        <div class="muted small" id="o-id"></div>
+                    </div>
+                    <span id="o-status" class="status"></span>
+                </div>
+                <ol id="timeline" class="timeline"></ol>
+                <div id="o-payment" class="payment" hidden></div>
+                <div id="o-lines"></div>
+            </div>
+        </section>
+
+        <section class="panel" aria-labelledby="history-title">
+            <div class="panel-head">
+                <h2 id="history-title">Últimas encomendas</h2>
+                <span class="hint">atualiza a cada 5 s</span>
+            </div>
+            <ul id="history" class="history"><li class="muted">A carregar…</li></ul>
+        </section>
+
+    </aside>
+</div>
+
+</main>
+
+<script src="js/servicos.js"></script>
+<script src="js/app.js"></script>
+<script src="js/loja.js"></script>
+</body>
+</html>

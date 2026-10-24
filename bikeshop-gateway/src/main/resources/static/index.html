@@ -1,90 +1,127 @@
 <!doctype html>
 <html lang="pt-PT">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BikeShop</title>
-  <link rel="icon" href="img/logo.svg" type="image/svg+xml">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Barlow+Condensed:ital,wght@0,600;0,800;1,800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/bikeshop.css">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BikeShop</title>
+    <meta name="description" content="BikeShop: loja de peças para bicicletas elétricas feita com 6 microsserviços. Arquitetura, grupo, SAGA da encomenda e estado ao vivo.">
+    <link rel="icon" href="img/logo.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="css/bikeshop.css">
+    <script>try { const t = localStorage.getItem('bikeshop.theme'); if (t) document.documentElement.dataset.theme = t; } catch { }</script>
 </head>
-<body>
+<body data-page="inicio">
 
-<header class="topo">
-  <div class="barra">
-    <a class="marca" href="#loja"><img src="img/logo.svg" alt=""><span>BIKE<b>SHOP</b></span></a>
-    <nav class="menu">
-      <a href="#loja" data-pagina="loja">Loja</a>
-      <a href="#encomenda" data-pagina="encomenda">Encomenda</a>
-      <a href="#bastidores" data-pagina="bastidores">Bastidores</a>
-    </nav>
-    <button class="cesto-botao" id="abrirCesto" type="button">Cesto<b id="contagem">0</b></button>
-  </div>
-</header>
+<main id="conteudo" class="page">
 
-<main>
-  <!-- Loja -->
-  <section id="loja" class="pagina">
-    <div class="faixa">
-      <h1>Peças para a tua <em>e-bike</em></h1>
-      <p>Baterias, motores, travões e tudo o que mantém a bicicleta elétrica a andar. Os preços vêm do catálogo; o stock é o do armazém, em tempo real.</p>
-      <span class="ano">2026</span>
-    </div>
-    <div class="filtros" id="filtros"></div>
-    <div class="grelha" id="pecas"></div>
-  </section>
+    <section class="hero">
+        <div class="hero-text">
+            <p class="eyebrow">Projeto prático · MTSDS 2026</p>
+            <h1>Peças para a tua e-bike, servidas por <span class="grad">6 microsserviços</span></h1>
+            <p class="lead">Baterias, motores, travões e tudo o que mantém a bicicleta elétrica a andar. Cada equipa explica como construiu os seus serviços: o que fazem, os dados, a API, as mensagens e as decisões. Em cada ficha há um painel para experimentar o serviço ao vivo.</p>
+            <div class="actions">
+                <a class="btn primary" href="loja.html">Abrir a loja</a>
+                <a class="btn secondary" href="#arquitetura">Ver a arquitetura</a>
+            </div>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+            <img class="logo hero" src="img/logo.svg" alt="">
+        </div>
+    </section>
 
-  <!-- Encomenda -->
-  <section id="encomenda" class="pagina" hidden>
-    <div class="duas">
-      <div class="painel">
-        <h2>A encomenda passo a passo <small id="encomendaId"></small></h2>
-        <div id="saga"><p class="vazio">Escolha uma encomenda à direita ou faça uma na loja.</p></div>
-      </div>
-      <div class="painel">
-        <h2>Últimas encomendas</h2>
-        <ul class="lista-encomendas" id="encomendas"></ul>
-      </div>
-    </div>
-  </section>
+    <ul class="stats" aria-label="Números do projeto">
+        <li><strong>6</strong><span>microsserviços</span></li>
+        <li><strong>4</strong><span>bases de dados PostgreSQL</span></li>
+        <li><strong>8</strong><span>mensagens RabbitMQ</span></li>
+        <li><strong>31</strong><span>testes automáticos</span></li>
+    </ul>
 
-  <!-- Bastidores -->
-  <section id="bastidores" class="pagina" hidden>
-    <div class="painel" style="margin-bottom:24px">
-      <h2>Como funciona</h2>
-      <p style="color:var(--cinza);margin:0">O browser só fala com a <b>bikeshop-gateway</b> (9080). Ela encontra cada serviço no <b>bikeshop-registo</b> (Eureka) pelo nome e encaminha o pedido. Cada serviço tem a sua base de dados PostgreSQL. A encomenda não chama o stock nem os pagamentos diretamente: envia mensagens pelo RabbitMQ (exchange <code>bikeshop.eventos</code>) e avança quando chegam as respostas. É a SAGA orquestrada.</p>
-    </div>
-    <h2 style="margin-bottom:12px">Serviços</h2>
-    <div class="servicos" id="servicos"></div>
-    <div class="duas">
-      <div class="painel">
-        <h2>Filas do RabbitMQ <small>atualiza a cada 3 s</small></h2>
-        <div class="rolar"><table class="tabela"><thead><tr><th>Fila</th><th>Quem consome</th><th>Mensagens</th><th>Consumidores</th></tr></thead><tbody id="filas"></tbody></table></div>
-      </div>
-      <div class="painel">
-        <h2>Stock</h2>
-        <div class="rolar"><table class="tabela"><thead><tr><th>Peça</th><th>Armazém</th><th>Reservado</th><th>Livre</th></tr></thead><tbody id="stock"></tbody></table></div>
-      </div>
-    </div>
-  </section>
+    <section id="arquitetura" class="section" aria-labelledby="arq-title">
+        <div class="section-head">
+            <h2 id="arq-title">Arquitetura</h2>
+            <p>O browser só fala com a bikeshop-gateway, que encontra cada serviço no bikeshop-registo (Eureka) pelo nome. Cada serviço de negócio tem a sua base de dados. A encomenda chama o catálogo por Feign e fala com o stock e os pagamentos por mensagens. Clique num serviço para ver a sua ficha.</p>
+        </div>
+        <div class="arch" id="arch">
+            <div class="arch-row arch-client">
+                <div class="arch-node client"><span class="arch-icon" aria-hidden="true">🖥</span>Browser · e2e-test.ps1</div>
+            </div>
+            <div class="arch-arrow" aria-hidden="true"></div>
+            <div class="arch-row arch-infra" id="arch-infra"></div>
+            <div class="arch-arrow" aria-hidden="true"></div>
+            <div class="arch-row arch-business" id="arch-business"></div>
+            <div class="arch-bus">
+                <span class="arch-icon" aria-hidden="true">⇄</span>
+                <strong>RabbitMQ</strong>
+                <span>exchange topic bikeshop.eventos: a encomenda fala com o stock e os pagamentos</span>
+            </div>
+            <div class="arch-legend" id="arch-legend"></div>
+        </div>
+    </section>
+
+    <section id="grupo" class="section" aria-labelledby="grupo-title">
+        <div class="section-head">
+            <h2 id="grupo-title">O grupo</h2>
+            <p>Quatro equipas, uma por elemento e cada uma com a sua cor, com o nome do domínio de que tratam: Catálogo, Encomenda, Armazém e Pagamento.</p>
+        </div>
+        <div class="team" id="team"></div>
+    </section>
+
+    <section id="saga" class="section" aria-labelledby="saga-title">
+        <div class="section-head">
+            <h2 id="saga-title">A SAGA da encomenda</h2>
+            <p>A encomenda conduz os passos (SAGA orquestrada). Não há transação comum: cada passo é local e, se o pagamento for recusado, o stock liberta o que reservou. Na <a href="loja.html">loja</a> vê estes passos a acontecer.</p>
+        </div>
+        <ol class="stepper" id="stepper"></ol>
+        <div class="table-wrap">
+            <table class="data">
+                <caption>Mensagens na exchange bikeshop.eventos</caption>
+                <thead><tr><th>Routing key</th><th>Publica</th><th>Consome</th><th>Para quê</th></tr></thead>
+                <tbody id="events"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section id="aovivo" class="section" aria-labelledby="vivo-title">
+        <div class="section-head">
+            <h2 id="vivo-title">Ao vivo</h2>
+            <p>As filas do RabbitMQ e o stock do armazém, lidos pela gateway a cada 3 segundos.</p>
+        </div>
+        <div class="two">
+            <div class="table-wrap">
+                <table class="data">
+                    <caption>Filas do RabbitMQ</caption>
+                    <thead><tr><th>Fila</th><th>Consome</th><th class="num">Mensagens</th><th class="num">Consumidores</th></tr></thead>
+                    <tbody id="filas"><tr><td colspan="4" class="muted">A carregar…</td></tr></tbody>
+                </table>
+            </div>
+            <div class="table-wrap">
+                <table class="data">
+                    <caption>Stock</caption>
+                    <thead><tr><th>Peça</th><th class="num">Armazém</th><th class="num">Reservado</th><th class="num">Livre</th></tr></thead>
+                    <tbody id="stock"><tr><td colspan="4" class="muted">A carregar…</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <section id="esqueleto" class="section" aria-labelledby="esq-title">
+        <div class="section-head">
+            <h2 id="esq-title">O mesmo esqueleto em todos os serviços</h2>
+            <p>Os quatro serviços de negócio têm a mesma organização, o que facilita passar de um para o outro.</p>
+        </div>
+        <div class="layers">
+            <div class="layer"><strong>controller</strong><span>REST e validação; ErroHandler com o nome do serviço</span></div>
+            <div class="layer"><strong>service</strong><span>Regras de negócio e idempotência</span></div>
+            <div class="layer"><strong>repository · entity</strong><span>Spring Data JPA; tabelas pelo Hibernate, dados do data.sql</span></div>
+            <div class="layer"><strong>messages · listeners · publishers</strong><span>Mensagens RabbitMQ; publicar só depois do commit</span></div>
+            <div class="layer"><strong>dto</strong><span>Contratos da API; ModelMapper</span></div>
+            <div class="layer"><strong>configuration</strong><span>MQConfig: exchange, filas e conversor JSON</span></div>
+        </div>
+    </section>
+
 </main>
 
-<!-- Cesto -->
-<aside class="cesto" id="cesto" aria-label="Cesto">
-  <header><h2>O teu cesto</h2><button class="fechar" id="fecharCesto" type="button" aria-label="Fechar">&times;</button></header>
-  <div class="linhas" id="linhasCesto"></div>
-  <footer>
-    <div class="total"><span>Total</span><span id="totalCesto">0,00 €</span></div>
-    <input id="nome" placeholder="Nome" autocomplete="name">
-    <input id="email" type="email" placeholder="Email" autocomplete="email">
-    <button class="botao" id="encomendar" type="button">Encomendar</button>
-  </footer>
-</aside>
-
-<div class="aviso" id="aviso"></div>
-<footer class="rodape-site">BikeShop · projeto académico de microsserviços (Spring Boot, Eureka, Gateway, RabbitMQ, Docker, Kubernetes) · pagamentos simulados</footer>
-
+<script src="js/servicos.js"></script>
 <script src="js/app.js"></script>
+<script src="js/inicio.js"></script>
 </body>
 </html>

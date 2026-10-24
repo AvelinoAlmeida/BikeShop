@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BikeShop · Microsserviço</title>
+    <meta name="description" content="Como foi construído cada microsserviço do BikeShop, com um painel para o experimentar ao vivo.">
+    <link rel="icon" href="img/logo.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="css/bikeshop.css">
+    <script>try { const t = localStorage.getItem('bikeshop.theme'); if (t) document.documentElement.dataset.theme = t; } catch { }</script>
+</head>
+<body data-page="servico">
+
+<main id="conteudo" class="page svc-page">
+    <aside class="svc-side" aria-label="Microsserviços por elemento do grupo">
+        <nav id="svc-list"></nav>
+    </aside>
+    <article id="svc" class="svc-main"></article>
+</main>
+
+<script src="js/servicos.js"></script>
+<script src="js/app.js"></script>
+<script src="js/servico.js"></script>
+</body>
+</html>
