@@ -21,10 +21,7 @@ $servicos = "bikeshop-registo", "bikeshop-gateway", "bikeshop-catalogo", "bikesh
 cmd /c "docker info >nul 2>&1"
 if ($LASTEXITCODE -ne 0) { Write-Host "O Docker nao responde. Abrir o Docker Desktop." -ForegroundColor Red; exit 1 }
 
-# O docker login guarda as credenciais; sem elas o push falha com "denied".
-$conta = (docker info --format "{{.Username}}" 2>$null)
-if (-not $conta) { Write-Host "Aviso: nao foi possivel confirmar o login. Se o push falhar, correr: docker login" -ForegroundColor Yellow }
-
+# Sem docker login o push falha com "denied"; nesse caso correr docker login e repetir.
 $falhas = 0
 foreach ($s in $servicos) {
     $local = "${s}:1.0"
