@@ -15,6 +15,8 @@ x-ambiente: &ambiente
   RABBITMQ_HOST: bikeshop-rabbitmq
   RABBITMQ_PORT: "5672"
   DB_PORT: "5432"
+  OTEL_HOST: bikeshop-jaeger
+  OTEL_PORT: "4318"
 
 services:
   bikeshop-registo:
@@ -34,6 +36,8 @@ services:
       EUREKA_HOST: bikeshop-registo
       RABBITMQ_HOST: bikeshop-rabbitmq
       RABBITMQ_ADMIN_PORT: "15672"
+      OTEL_HOST: bikeshop-jaeger
+      OTEL_PORT: "4318"
 
   bikeshop-catalogo:
     <<: *servico

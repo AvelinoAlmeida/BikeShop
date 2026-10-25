@@ -1,4 +1,4 @@
-# Infraestrutura do BikeShop: grupo bikeshop-infra no Docker Desktop (PostgreSQL x4, RabbitMQ e Adminer).
+# Infraestrutura do BikeShop: grupo bikeshop-infra no Docker Desktop (PostgreSQL x4, RabbitMQ, Jaeger e Adminer).
 #   docker compose up -d --wait     # arranca e espera que fique tudo healthy
 #   docker compose down             # para (os volumes bikeshop-*-dados ficam)
 #   docker compose down -v          # para e apaga os dados (voltam os dados de exemplo)
@@ -80,6 +80,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
+
+  # Traces de cada pedido (OpenTelemetry por OTLP), por exemplo uma encomenda a passar pelos 5 serviços.
+  # http://localhost:16687  (OTLP HTTP para os serviços no anfitrião: localhost:4319)
+  bikeshop-jaeger:
+    image: jaegertracing/jaeger:2.22.0
+    container_name: bikeshop-jaeger
+    labels:
+      bikeshop.descricao: "Traces dos pedidos (http://localhost:16687)"
+    ports:
+      - "16687:16686"
+      - "4319:4318"
     restart: unless-stopped
 
   # Gestão das bases de dados no browser (slide 04: Adminer/pgAdmin ao lado do PostgreSQL).

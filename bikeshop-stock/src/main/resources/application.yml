@@ -24,6 +24,8 @@ spring:
     password: ${RABBITMQ_PASSWORD:bikeshop}
     listener:
       simple:
+        # Quem recebe a mensagem continua o trace (o envio é observado no RabbitTemplate do MQConfig)
+        observation-enabled: true
         default-requeue-rejected: false   # uma mensagem que falha não volta à fila em ciclo
 
 eureka:
@@ -42,3 +44,17 @@ management:
     health:
       probes:
         enabled: true
+  # Tracing: todos os pedidos são registados e enviados por OTLP para o Jaeger (bikeshop-jaeger)
+  tracing:
+    sampling:
+      probability: 1.0
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: http://${OTEL_HOST:localhost}:${OTEL_PORT:4319}/v1/traces
+  # O Jaeger só recebe traces: as métricas não são exportadas
+  otlp:
+    metrics:
+      export:
+        enabled: false

@@ -97,6 +97,7 @@ public class MQConfig {
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory, MessageConverter messageConverter) {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
         template.setMessageConverter(messageConverter);
+        template.setObservationEnabled(true);   // a mensagem leva o trace (tracing)
         return template;
     }
 }

@@ -1,4 +1,4 @@
-# Configuração comum. A infraestrutura (PostgreSQL e RabbitMQ) fica no Docker Compose, fora do cluster
+# Configuração comum. A infraestrutura (PostgreSQL, RabbitMQ e Jaeger) fica no Docker Compose, fora do cluster
 # (slide 06: a persistência normalmente fica fora do Kubernetes); os pods chegam-lhe por host.minikube.internal.
 apiVersion: v1
 kind: ConfigMap
@@ -11,3 +11,5 @@ data:
   RABBITMQ_HOST: "host.minikube.internal"
   RABBITMQ_PORT: "5673"
   RABBITMQ_ADMIN_PORT: "15673"
+  OTEL_HOST: "host.minikube.internal"
+  OTEL_PORT: "4319"
