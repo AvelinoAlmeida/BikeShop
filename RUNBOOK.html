@@ -118,7 +118,7 @@ footer{margin:40px 0;color:var(--m);font-size:.85rem}
     </li>
     <li>
       <h3>Abrir a interface</h3>
-      <p>A loja, a arquitetura com o estado de cada serviço e o menu <b>Ferramentas</b> (Eureka, RabbitMQ, Adminer). Os containers aparecem no Docker Desktop, em <b>Containers</b>, nos grupos <code>bikeshop-infra</code> e <code>bikeshop-apps</code>.</p>
+      <p>A loja, a arquitetura com o estado de cada serviço e o menu <b>Ferramentas</b> (Eureka, RabbitMQ, Adminer, Jaeger, Swagger UI). Os containers aparecem no Docker Desktop, em <b>Containers</b>, nos grupos <code>bikeshop-infra</code> e <code>bikeshop-apps</code>.</p>
       <div class="cmd"><pre>start http://localhost:9080/</pre></div>
     </li>
     <li>
@@ -154,7 +154,7 @@ footer{margin:40px 0;color:var(--m);font-size:.85rem}
     </li>
     <li>
       <h3>Arrancar a infraestrutura</h3>
-      <p>No terminal do VS Code (<kbd>Ctrl</kbd>+<kbd>`</kbd>): 4 PostgreSQL, RabbitMQ e Adminer.</p>
+      <p>No terminal do VS Code (<kbd>Ctrl</kbd>+<kbd>`</kbd>): 4 PostgreSQL, RabbitMQ, Jaeger e Adminer.</p>
       <div class="cmd"><pre>docker compose up -d --wait</pre></div>
       <span class="ok">Container bikeshop-rabbitmq Healthy</span>
       <div class="note">Se os serviços estiverem a correr em Docker, pare-os primeiro, porque usam as mesmas portas: <code>docker compose -f docker-compose.apps.yml down</code></div>
@@ -201,7 +201,7 @@ footer{margin:40px 0;color:var(--m);font-size:.85rem}
     </li>
     <li>
       <h3>Arrancar a infraestrutura</h3>
-      <p>No terminal do IntelliJ (<kbd>Alt</kbd>+<kbd>F12</kbd>): 4 PostgreSQL, RabbitMQ e Adminer.</p>
+      <p>No terminal do IntelliJ (<kbd>Alt</kbd>+<kbd>F12</kbd>): 4 PostgreSQL, RabbitMQ, Jaeger e Adminer.</p>
       <div class="cmd"><pre>docker compose up -d --wait</pre></div>
       <span class="ok">Container bikeshop-rabbitmq Healthy</span>
       <div class="note">Se os serviços estiverem a correr em Docker, pare-os primeiro, porque usam as mesmas portas: <code>docker compose -f docker-compose.apps.yml down</code></div>
@@ -274,6 +274,8 @@ kubectl get pods -n bikeshop</pre></div>
     <tr><td>Eureka (serviços registados)</td><td><a href="http://localhost:9761/">localhost:9761</a></td><td>sem login; devem aparecer 5 serviços</td></tr>
     <tr><td>RabbitMQ (filas da SAGA)</td><td><a href="http://localhost:15673/">localhost:15673</a></td><td><code>bikeshop</code> / <code>bikeshop</code></td></tr>
     <tr><td>Adminer (bases de dados)</td><td><a href="http://localhost:18081/">localhost:18081</a></td><td>Sistema <b>PostgreSQL</b>, servidor <code>bikeshop-postgres-&lt;serviço&gt;</code>, <code>bikeshop</code> / <code>bikeshop</code>, base de dados <code>bikeshop_&lt;serviço&gt;</code></td></tr>
+    <tr><td>Jaeger (traces dos pedidos)</td><td><a href="http://localhost:16687/">localhost:16687</a></td><td>sem login; serviço <code>bikeshop-gateway</code>, Find Traces; uma encomenda passa pelos 5 serviços</td></tr>
+    <tr><td>Swagger UI (API de cada serviço)</td><td><a href="http://localhost:9080/swagger-ui.html">localhost:9080/swagger-ui.html</a></td><td>escolher o serviço em "Select a definition"; "Try it out" passa pela gateway</td></tr>
     <tr><td>Cada serviço responde</td><td><a href="http://localhost:9080/api/pecas/landing">/api/pecas/landing</a>, <a href="http://localhost:9080/api/stock/landing">/api/stock/landing</a>, <a href="http://localhost:9080/api/pagamentos/landing">/api/pagamentos/landing</a>, <a href="http://localhost:9080/api/encomendas/landing">/api/encomendas/landing</a></td><td>-</td></tr>
     <tr><td>Postman</td><td><code>postman/bikeshop.postman_collection.json</code></td><td>importar e correr por ordem (Runner)</td></tr>
   </tbody>
@@ -287,6 +289,8 @@ kubectl get pods -n bikeshop</pre></div>
     <tr><td>Não aparece o botão Terminal no Docker Desktop</td><td>Versão antiga do Docker Desktop</td><td>Atualizá-lo, ou usar um PowerShell normal na mesma pasta</td></tr>
     <tr><td>503, 500 ou pontos vermelhos no primeiro minuto</td><td>Os serviços ainda se estão a registar no Eureka e a descobrir-se uns aos outros</td><td>Esperar 30 segundos e repetir</td></tr>
     <tr><td><code>Port 9080 was already in use</code> (ou outra porta 908x/9761)</td><td>O serviço já corre noutro sítio (Docker, VS Code, IntelliJ ou terminal)</td><td><code>docker compose -f docker-compose.apps.yml down</code> ou parar no IDE, e arrancar de novo</td></tr>
+    <tr><td>503 "O catálogo está indisponível" ao criar uma encomenda</td><td>Catálogo parado ou lento; depois de 5 falhas o circuit breaker fica aberto 10 s</td><td>Ver se o <code>bikeshop-catalogo</code> está a correr e repetir passados 10 s</td></tr>
+    <tr><td>O Jaeger não mostra traces</td><td>O Jaeger arrancou depois dos serviços, ou o pedido ainda não foi enviado (vão em lotes de 5 s)</td><td><code>docker compose up -d --wait</code> e repetir o pedido; esperar uns segundos</td></tr>
     <tr><td>A interface não mostra uma alteração ao código</td><td>As imagens Docker têm o JAR antigo</td><td>Arrancar com <code>-Compilar</code></td></tr>
     <tr><td>Adminer: "Unable to connect" ou pede MySQL</td><td>Sistema MySQL (o que vem por omissão) ou servidor <code>localhost</code></td><td>Escolher PostgreSQL e o servidor <code>bikeshop-postgres-&lt;serviço&gt;</code></td></tr>
     <tr><td>VS Code: "BikeShop (todos)" não aparece ou a classe não é encontrada</td><td>Pasta errada, ou o Java ainda não está pronto</td><td>Abrir <code>C:\ESTG\BikeShop</code> e esperar por "Java: Ready"; se persistir, <b>Java: Clean Java Language Server Workspace</b></td></tr>

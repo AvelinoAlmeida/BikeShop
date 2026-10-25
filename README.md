@@ -1,6 +1,6 @@
 # BikeShop
 
-Loja de peças para bicicletas elétricas (2026), feita em microsserviços com Spring Boot e Spring Cloud. É um projeto de estudo: pequeno de propósito, para se perceber como as peças encaixam. Usa as tecnologias dos slides da unidade curricular de Microsserviços (MTSDS, ESTG): Eureka, Gateway, OpenFeign, RabbitMQ, Docker e Kubernetes.
+Loja de peças para bicicletas elétricas (2026), feita em microsserviços com Spring Boot e Spring Cloud. É um projeto de estudo: pequeno de propósito, para se perceber como as peças encaixam. Usa as tecnologias dos slides da unidade curricular de Microsserviços (MTSDS, ESTG): Eureka, Gateway, OpenFeign, RabbitMQ, Docker e Kubernetes. Além dos slides, tem três boas práticas de 2026: circuit breaker, tracing e Swagger (secção 14).
 
 Os pagamentos são simulados: não há banco nem cartão.
 
@@ -92,21 +92,24 @@ Três regras tornam a SAGA segura:
 
 ## 3. Tecnologia
 
-O ponto de partida são os slides da unidade curricular. O que não aparece neles ficou de fora para o projeto continuar pequeno.
+O ponto de partida são os slides da unidade curricular. Do que não aparece neles só entraram três boas práticas de 2026, escolhidas depois de uma pesquisa (secção 14); o resto ficou de fora para o projeto continuar pequeno.
 
 | Tecnologia | Para quê | Onde nos slides |
 |---|---|---|
-| Spring Boot 3.5, Java 17, Lombok | Base de cada serviço | Slide 02 |
+| Spring Boot 4.1, Spring Cloud 2025.1, Java 17, Lombok | Base de cada serviço | Slide 02 (os slides usam o 3.1) |
 | Spring Data JPA, PostgreSQL (H2 nos testes) | Persistência, uma base por serviço | Slide 03 |
 | Query JPQL própria (@Query) | Peças de uma categoria até um preço | Slide 03 |
 | ModelMapper, auditoria JPA, /landing, erro com o nome do serviço | Boas práticas da API | Slide 04 |
 | Eureka, Spring Cloud Gateway, OpenFeign e LoadBalancer | Registo, entrada única, chamadas entre serviços | Slide 04 |
 | RabbitMQ (MQConfig, @RabbitListener, JSON) | Mensagens da SAGA | Slide 05 |
 | Docker, Docker Compose, Kubernetes (Minikube) | Implementação | Slide 06 |
+| Resilience4j | Circuit breaker na chamada da encomenda ao catálogo | Só referido (slides 01 e 04) |
+| OpenTelemetry e Jaeger | Traces: o caminho de cada pedido pelos serviços | Só referido (slide 01, tracing) |
+| springdoc (OpenAPI e Swagger UI) | Documentação da API de cada serviço | Não aparece |
 
 Tabela 3: Tecnologia e origem.
 
-O que os slides pedem, o que está feito e o que fica de fora (e porquê) está na secção 11.
+O que os slides pedem e o que está feito está na secção 11; o resumo das aulas na 12; a comparação com o GameShop na 13; e as ferramentas além dos slides (as que entraram e as guardadas para o futuro) na 14.
 
 ## 4. Como correr
 
@@ -122,12 +125,12 @@ O passo a passo, com os resultados esperados e o que fazer se correr mal, está 
 .\scripts\parar.ps1           # para tudo e mantém os dados (-ApagarDados para começar do zero)
 ```
 
-A interface fica em http://localhost:9080/, a consola do RabbitMQ em http://localhost:15673 (bikeshop / bikeshop) e o Adminer, para ver as bases de dados, em http://localhost:18081 (sistema PostgreSQL, servidor `bikeshop-postgres-<serviço>`, bikeshop / bikeshop, base de dados `bikeshop_<serviço>`).
+A interface fica em http://localhost:9080/, a consola do RabbitMQ em http://localhost:15673 (bikeshop / bikeshop) o Adminer, para ver as bases de dados, em http://localhost:18081 (sistema PostgreSQL, servidor `bikeshop-postgres-<serviço>`, bikeshop / bikeshop, base de dados `bikeshop_<serviço>`), o Jaeger, com os traces, em http://localhost:16687 e a Swagger UI em http://localhost:9080/swagger-ui.html.
 
 **Passo a passo, sem o script:**
 
 ```powershell
-docker compose up -d --wait                                # PostgreSQL x4, RabbitMQ e Adminer (grupo bikeshop-infra)
+docker compose up -d --wait                                # PostgreSQL x4, RabbitMQ, Jaeger e Adminer (grupo bikeshop-infra)
 .\mvnw.cmd package                                         # compila e corre os testes
 docker compose -f docker-compose.apps.yml up -d --build    # os 6 serviços (grupo bikeshop-apps)
 ```
@@ -142,7 +145,7 @@ kubectl port-forward -n bikeshop svc/bikeshop-gateway 19080:80  # interface em h
 .\scripts\e2e-test.ps1 -Gateway http://localhost:19080
 ```
 
-No cluster correm os 6 serviços, o catálogo com 2 réplicas. O PostgreSQL e o RabbitMQ ficam no Docker Compose e os pods chegam-lhes por `host.minikube.internal`, como o slide 06 sugere para a persistência.
+No cluster correm os 6 serviços, o catálogo com 2 réplicas. O PostgreSQL, o RabbitMQ e o Jaeger ficam no Docker Compose e os pods chegam-lhes por `host.minikube.internal`, como o slide 06 sugere para a persistência.
 
 **Ver o balanceamento (slides 04 e 06):** cada pedido a `GET /api/pecas/{referencia}` escreve no log a instância que respondeu. Depois de alguns pedidos (por exemplo, o `e2e-test.ps1`), os dois pods aparecem:
 
@@ -165,6 +168,15 @@ kubectl rollout undo deployment/bikeshop-catalogo -n bikeshop           # voltar
 
 O `k8s-deploy.ps1` volta a aplicar os manifestos de `k8s/`, com as imagens locais 1.0.
 
+**Catálogo em baixo (circuit breaker):** com o catálogo parado, criar uma encomenda dá 503 ("O catálogo está indisponível") ao fim de cerca de 1 s. Depois de 5 falhas o circuito abre e, durante 10 s, a resposta é imediata, sem tentar o catálogo:
+
+```powershell
+docker stop bikeshop-catalogo      # criar encomendas na loja: 503
+docker start bikeshop-catalogo     # passado o arranque, volta a funcionar
+```
+
+**Traces (Jaeger):** em http://localhost:16687, escolher o serviço `bikeshop-gateway` e **Find Traces**. Uma encomenda aparece num só trace: gateway, encomendas, circuit breaker e Feign até ao catálogo, e as mensagens do RabbitMQ pelo stock, encomendas e pagamentos.
+
 **Postman (slides 03 e 04):** importar `postman/bikeshop.postman_collection.json` e correr a coleção por ordem (Runner). São 37 pedidos pela gateway, com todos os endpoints e os casos de erro (404, 400 de validação, JSON mal formado, UUID inválido, aprovar duas vezes). Cada pedido tem testes do código HTTP; a encomenda criada fica na variável `encomendaId` para os pedidos seguintes.
 
 ## 5. Nomes
@@ -178,6 +190,7 @@ Os nomes dizem o que cada coisa é. O prefixo `bikeshop-` separa este projeto de
 | Bases de dados | bikeshop-postgres-catalogo, -stock, -pagamentos e -encomendas |
 | Broker | bikeshop-rabbitmq |
 | Gestão das BD | bikeshop-adminer |
+| Traces | bikeshop-jaeger |
 | Imagens | bikeshop-<serviço>:1.0, com as etiquetas OCI de título e descrição |
 | Volumes | bikeshop-postgres-<serviço>-dados e bikeshop-rabbitmq-dados |
 | Rede | bikeshop-rede |
@@ -191,6 +204,7 @@ Tabela 4: Nomes no Docker e no Kubernetes.
 | 55432 a 55435 | PostgreSQL (catálogo, stock, pagamentos, encomendas) |
 | 5673, 15673 | RabbitMQ (AMQP e consola) |
 | 18081 | Adminer (gestão das bases de dados) |
+| 16687, 4319 | Jaeger (interface e OTLP para os serviços no anfitrião) |
 
 Tabela 5: Portas no anfitrião. São diferentes das habituais para não colidirem com outros projetos.
 
@@ -210,6 +224,8 @@ Todos os caminhos passam pela gateway (http://localhost:9080).
 | GET /api/pagamentos/encomenda/{id} | pagamentos | Pagamento de uma encomenda |
 | POST /api/pagamentos/encomenda/{id}/aprovar ou /recusar | pagamentos | Simula a resposta do banco |
 | GET /api/<recurso>/landing | todos | Confirma que o serviço responde |
+| GET /swagger-ui.html | gateway | Swagger UI com a API dos 4 serviços |
+| GET /api-docs/<serviço> | gateway | Documento OpenAPI de um serviço (vem do seu `/v3/api-docs`) |
 
 Tabela 6: API.
 
@@ -223,14 +239,15 @@ POST /api/encomendas
 
 ## 7. Testes
 
-`.\mvnw.cmd verify` corre 54 testes, sem Docker (H2 em memória e RabbitMQ simulado):
+`.\mvnw.cmd verify` corre 56 testes, sem Docker (H2 em memória e RabbitMQ simulado):
 
 - **unitários da SAGA:** a encomenda (agregado e estados), o serviço de encomendas, o stock (tudo ou nada, repetição, confirmar e libertar) e os pagamentos;
 - **@DataJpaTest:** a query JPQL, a procura por marca, a auditoria e a gravação da encomenda com as linhas;
 - **OpenFeign (`CatalogoClientTest`):** o `CatalogoClient` a sério, contra duas instâncias falsas do catálogo declaradas no discovery simples. Confirma o JSON, que o LoadBalancer reparte os pedidos pelas duas e que o 404 do catálogo chega à encomenda como 400;
-- **@WebMvcTest:** os controllers dos quatro serviços de negócio, incluindo o `/landing`, o erro 404 com o nome do serviço e os 400 de validação, de JSON mal formado e de identificador inválido.
+- **Circuit breaker (`CatalogoIndisponivelTest`):** com o catálogo numa porta sem ninguém, a encomenda dá `ServicoIndisponivelException` (503) e, depois de 5 falhas, o circuito abre e a chamada falha logo;
+- **@WebMvcTest:** os controllers dos quatro serviços de negócio, incluindo o `/landing`, o erro 404 com o nome do serviço e os 400 de validação, de JSON mal formado e de identificador inválido, e o 503 com o catálogo em baixo.
 
-Nos testes o log fica só na consola (`src/test/resources/logback-test.xml`).
+Nos testes o log fica só na consola (`src/test/resources/logback-test.xml`) e os traces não são exportados.
 
 O `scripts\e2e-test.ps1` testa o sistema a correr, pela gateway: encomenda paga com o stock em baixo, pagamento recusado com o stock libertado (compensação) e encomenda sem stock.
 
@@ -238,7 +255,7 @@ O `scripts\e2e-test.ps1` testa o sistema a correr, pela gateway: encomenda paga 
 
 A interface é servida pela gateway, a partir de `bikeshop-gateway/src/main/resources/static` (a pasta que o Spring Boot serve sozinho): só HTML, CSS e JS, sem bibliotecas. Assim a gateway continua a ser o único ponto de entrada de todos os pedidos HTTP (slide 04), e as páginas e a API ficam na mesma origem, sem CORS. O aspeto é uma réplica da interface do projeto GameShop (cores, cartões, cantos, sombras, tipografia e tema claro/escuro), com o laranja do BikeShop no lugar do índigo e o logótipo do BikeShop.
 
-- **Cabeçalho**, igual em todas as páginas: o logótipo leva à visão geral, o botão **Loja** e, logo a seguir, o menu **Ferramentas** (Eureka, consola do RabbitMQ, Adminer e o `/landing` de cada serviço, com indicação de se estão a responder). À direita há um botão por equipa (Catálogo, Encomenda, Armazém, Pagamento), com o estado dos seus serviços e a ligação à ficha de cada um.
+- **Cabeçalho**, igual em todas as páginas: o logótipo leva à visão geral, o botão **Loja** e, logo a seguir, o menu **Ferramentas** (Eureka, consola do RabbitMQ, Adminer, Jaeger, Swagger UI e o `/landing` de cada serviço, com indicação de se estão a responder). À direita há um botão por equipa (Catálogo, Encomenda, Armazém, Pagamento), com o estado dos seus serviços e a ligação à ficha de cada um.
 - **index.html (visão geral):** arquitetura com o estado de cada serviço, o grupo, os passos da SAGA, a tabela das mensagens e, "ao vivo", as filas do RabbitMQ e o stock.
 - **loja.html:** catálogo por categoria com o stock em tempo real, cesto, a encomenda com a SAGA passo a passo (botões para aprovar ou recusar o pagamento) e as últimas encomendas. A encomenda aberta fica no endereço (`loja.html#<id>`).
 - **servico.html?id=<serviço>:** ficha de cada microsserviço (o que faz, como encaixa, dados, API, decisões, testes, como correr), com um painel **Experimentar** que faz pedidos reais pela gateway e mostra a resposta completa.
@@ -271,7 +288,7 @@ Comandos úteis além dos da secção 4 (a partir da raiz; em Git Bash usar `./m
 .\mvnw.cmd package -DskipTests                                 # JARs sem testes
 ```
 
-O JAR de cada módulo chama-se como o módulo (`<finalName>` no pom pai), porque os Dockerfiles copiam `target/<módulo>.jar`. As versões (Spring Boot 3.5.6, Spring Cloud 2025.0.0, Lombok, ModelMapper) estão só no `pom.xml` pai.
+O JAR de cada módulo chama-se como o módulo (`<finalName>` no pom pai), porque os Dockerfiles copiam `target/<módulo>.jar`. As versões (Spring Boot 4.1.2, Spring Cloud 2025.1.4, ModelMapper, springdoc 3.2.0) estão só no `pom.xml` pai; o Lombok vem com a versão do Spring Boot.
 
 O que é preciso saber antes de mexer:
 
@@ -287,6 +304,10 @@ O que é preciso saber antes de mexer:
 - **Banner:** cada serviço mostra no arranque o `banner.txt` com o seu nome e a porta.
 - **Configuração:** o `application.yml` de cada serviço tem valores por omissão para o anfitrião e lê `DB_HOST`, `DB_PORT`, `RABBITMQ_HOST`, `EUREKA_HOST`, etc. das variáveis de ambiente, que vêm do `docker-compose.apps.yml` ou do `k8s/01-configmap.yaml` e `02-secret.yaml`. Uma variável nova tem de ir para os dois sítios.
 - **Testes** usam `src/test/resources/application.yml`: H2 com `create-drop`, Eureka desligado e listeners do RabbitMQ com `auto-startup: false`. Não precisam de Docker.
+- **Spring Boot 4:** os starters são modulares (`spring-boot-starter-webmvc`, e para os testes `-webmvc-test` e `-data-jpa-test`). `@WebMvcTest`, `@DataJpaTest` e `TestEntityManager` estão em `org.springframework.boot.webmvc.test.autoconfigure`, `...data.jpa.test.autoconfigure` e `...jpa.test.autoconfigure`. O JSON é o Jackson 3; no RabbitMQ o conversor é o `JacksonJsonMessageConverter`. O Jackson 2 só aparece dentro do cliente Eureka.
+- **Circuit breaker:** está em `EncomendasConfig` (`circuitBreakerCatalogo`) e liga-se com `spring.cloud.openfeign.circuitbreaker.enabled`. O 404 do catálogo não conta como falha. Com o circuit breaker, o erro do Feign chega dentro de `NoFallbackAvailableException`, e `EncomendasService.pecaDoCatalogo` tira-o de lá.
+- **Tracing:** `spring-boot-starter-opentelemetry` nos 5 serviços que tratam pedidos (o registo fica de fora). O endpoint é `http://${OTEL_HOST}:${OTEL_PORT}/v1/traces`. O `RabbitTemplate` de cada `MQConfig` tem `setObservationEnabled(true)` e os listeners têm `observation-enabled`, para a SAGA ficar num só trace. Nos testes, `management.tracing.export.enabled: false`.
+- **Swagger:** cada serviço de negócio publica `/v3/api-docs` (bean `documentacao` na sua configuração, com o servidor "/") e cada controller tem `@Tag`. Um serviço novo precisa de uma rota `/api-docs/<serviço>` e de uma entrada em `springdoc.swagger-ui.urls` no `application.yml` da gateway.
 - **Dados de exemplo** vêm do `data.sql` (catálogo e stock); as referências das peças (ex.: `BAT-500`) têm de existir nos dois.
 
 ## 11. Conformidade com os slides MTSDS
@@ -313,7 +334,7 @@ Revisão do projeto contra os slides oficiais da UC (01 a 06, em `docs/`, fora d
 | 03 | Camada de serviço com `@Service` e `@Transactional` | Feito | `service/` |
 | 03 | PostgreSQL em Docker Compose, com volume; H2 nos testes | Feito | `docker-compose.yml`, `src/test/resources` |
 | 03 | Não mandar o detalhe técnico do erro ao cliente; registar no log | Acrescentado | `ErroHandler` (500 genérico com `log.error`) |
-| 03 | Testes unitários para os vários endpoints | Acrescentado | 54 testes (secção 7) |
+| 03 | Testes unitários para os vários endpoints | Acrescentado | 56 testes (secção 7) |
 | 03/04 | Testar com o Postman, incluindo as exceções | Acrescentado | `postman/bikeshop.postman_collection.json` |
 | 04 | DTO em vez de entidades na API ("boa prática") | Feito; corrigido nas reservas | `dto/`, `ReservaDto` |
 | 04 | ModelMapper | Feito | `@Bean` em cada `configuration/` |
@@ -329,7 +350,7 @@ Revisão do projeto contra os slides oficiais da UC (01 a 06, em `docs/`, fora d
 | 04 | Logback com ficheiro local (exercício) | Acrescentado | `logs/<serviço>.log` |
 | 05 | `spring-boot-starter-amqp`, `MQConfig` com exchange, filas e bindings | Feito | `configuration/MQConfig` |
 | 05 | TopicExchange e routing keys | Feito | Tabela 2 |
-| 05 | `Jackson2JsonMessageConverter` no produtor e no consumidor | Feito | `MQConfig` |
+| 05 | `Jackson2JsonMessageConverter` no produtor e no consumidor | Feito; no Spring AMQP 4 é o `JacksonJsonMessageConverter` (Jackson 3) | `MQConfig` |
 | 05 | `@RabbitListener` e package `messages` | Feito | `listeners/`, `messages/` |
 | 05 | RabbitMQ com consola de gestão em Docker | Feito | `docker-compose.yml` (porta 15673) |
 | 05 | Resiliência: parar o consumidor e ver as mensagens esperarem na fila | Feito | filas duráveis; ver na interface (Ao vivo) ou na consola |
@@ -340,6 +361,8 @@ Revisão do projeto contra os slides oficiais da UC (01 a 06, em `docs/`, fora d
 | 06 | Deployment com réplicas e Service (LoadBalancer na entrada) | Feito; réplicas acrescentadas | `k8s/bikeshop-*.yaml` |
 | 06 | ConfigMap e Secret para separar a configuração do código | Feito | `k8s/01-configmap.yaml`, `02-secret.yaml` |
 | 06 | `kubectl scale`, `logs`, `describe` | Feito | secção 4 |
+| 01/04 | Circuit breaker (só referido) | Acrescentado (boa prática 2026) | Resilience4j nas encomendas (secção 14) |
+| 01 | Tracing (só referido) | Acrescentado (boa prática 2026) | OpenTelemetry e Jaeger (secção 14) |
 
 Tabela 7: Conformidade com os slides.
 
@@ -368,9 +391,142 @@ Tabela 8: Exercícios dos slides.
 
 **Fora de âmbito, de propósito.** Os slides só os mencionam, sem pedir que se apliquem; ficam de fora para o projeto continuar pequeno:
 
-- **Swagger/OpenAPI, Liquibase/Flyway, MapStruct:** não aparecem nos slides. As tabelas são criadas pelo Hibernate (`ddl-auto`, slide 03) e os dados vêm do `data.sql`.
-- **Circuit breaker (Resilience4j), tracing (Zipkin), Spring Cloud Config:** só listados no slide 01 como serviços do Spring Cloud.
+- **Flyway/Liquibase, MapStruct, Envers, Redis, Prometheus e HTTP Service Clients:** guardados para o futuro, se o docente aprovar (secção 14.2). As tabelas são criadas pelo Hibernate (`ddl-auto`, slide 03) e os dados vêm do `data.sql`.
+- **Spring Cloud Config:** só listado no slide 01 como serviço do Spring Cloud.
 - **Spring Security:** só listado como módulo (slides 01 e 02); o slide 04 diz que a autenticação "pode ser feita" na gateway.
 - **Dead-letter exchange, retries e ack manual no RabbitMQ:** só no glossário do slide 05.
 - **Ingress, PersistentVolume e StatefulSet:** só como conceitos no slide 06, que sugere manter a persistência fora do cluster.
 - **Eureka em vários nós e erros enviados por email:** recomendação e exercício do slide 04 que pedem infraestrutura extra (mais nós, servidor de email).
+
+## 12. Resumo das aulas MTSDS
+
+Resumo dos slides 01 a 06 (prof. Célio Carvalho). As marcas dizem até onde vai cada pedido:
+
+- **Obrigatório**: o slide manda fazer, numa demonstração ou num exercício.
+- **Boa prática**: o slide recomenda.
+- **Referido**: o slide só fala do assunto.
+
+A versão mais longa está em `docs/resumo-aulas-MTSDS.md` (fora do Git).
+
+**O que instalar:**
+- JDK 17 ou superior (os slides usam o 19);
+- Maven, ou o `mvnw` do projeto;
+- IntelliJ IDEA com Lombok;
+- Postman;
+- Docker e Docker Compose, com uma conta no Docker Hub;
+- Minikube e kubectl;
+- uma ferramenta de gestão da base de dados: pgAdmin, Adminer ou phpMyAdmin.
+
+| Aula | Tema | Dependências e ferramentas | Obrigatório (demos e exercícios) |
+|---|---|---|---|
+| 01 | Microsserviços vs monólito; módulos do Spring; Spring Boot e Spring Cloud | Nenhuma | Base das aulas seguintes |
+| 02 | Spring Boot básico | `spring-boot-starter-web`, `-test`, `-actuator`, `spring-boot-maven-plugin`, Lombok, SLF4J com Logback (e Log4j/Log4j2 como alternativas) | Maven multi-módulo, uma porta por módulo, `application.properties`/`.yml`, controllers REST, MockMvc; `banner.txt` como boa prática; exercício MedicalControl (quem acedeu e quando) |
+| 03 | Spring Data JPA | `spring-boot-starter-data-jpa`, H2 (`/h2-console`), PostgreSQL com pgAdmin em docker-compose | Entidades e relações, `JpaRepository`, `@Query` (JPQL), auditoria `@CreatedDate`/`@LastModifiedDate`, `@Service` com `@Transactional`, sem detalhe técnico nos erros; exercícios: PUT e DELETE, `GET /{ano}/{active}`, testes de todos os endpoints |
+| 04 | Microsserviços com Spring Cloud | ModelMapper, `spring-cloud-starter-gateway`, `-netflix-eureka-server`/`-client`, `-openfeign`, `-loadbalancer`, `spring-boot-starter-webflux` (WebClient) | DTO, `/landing`, exceções com `@ControllerAdvice` e o nome do serviço, Gateway com rotas, Eureka, Feign ou `@LoadBalanced`; exercícios: MySQL/PostgreSQL com phpMyAdmin/Adminer, Feign com testes, Logback em ficheiro (e erros por email), 2.ª instância com balanceamento, imagem Docker, tudo no Minikube |
+| 05 | RabbitMQ | `spring-boot-starter-amqp`, `rabbitmq:3.12.9-management` | `MQConfig` com `Queue`, `TopicExchange`, `Binding`, `Jackson2JsonMessageConverter` e `RabbitTemplate`; `@RabbitListener`; package `messages`; parar o consumidor e ver as mensagens esperar; exercícios: persistência com rastreabilidade, listener no sentido inverso, decisão automática e assíncrona |
+| 06 | Docker e Kubernetes | Dockerfile (`openjdk:19`), Docker Hub, Minikube, kubectl | `finalName` e `repackage`; `docker build/tag/push` com versão; Deployment com réplicas e Service LoadBalancer; `apply`, `scale`, `logs`, `rollout`; exercícios: versão 2.0 no Docker Hub posta no cluster, serviço novo com 2 réplicas |
+
+Tabela 9: Aulas, ferramentas e o que é obrigatório.
+
+**Só referido** (não é pedido):
+- Spring Security e Config Server;
+- circuit breaker (Hystrix, Resilience4j) e tracing (Sleuth, Zipkin);
+- Zuul e Eureka em vários nós;
+- dead-letter exchange e ack manual;
+- Ingress, PersistentVolume e StatefulSet;
+- erros enviados por email.
+
+O BikeShop cumpre tudo o que é obrigatório (Tabelas 7 e 8). Do que é só referido, acrescentou o circuit breaker e o tracing (secção 14).
+
+## 13. MTSDS vs GameShop vs BikeShop
+
+O GameShop é o projeto prático de partida (`C:\ESTG\MTSDS\PP-projeto-pratico`), importado e corrigido. O BikeShop foi feito de raiz para seguir os slides.
+
+| Tema | MTSDS (slides) | GameShop | BikeShop |
+|---|---|---|---|
+| Serviços | 4 a 5 por demonstração | 8: 6 de negócio, Eureka e gateway, mais um módulo web-ui | 6: 4 de negócio, registo e gateway |
+| Java / Spring Boot / Spring Cloud | 19 / 3.1 / sem versão | 17 / 3.5.6 / 2025.0.0 (sem suporte OSS desde junho de 2026) | 17 / 4.1.2 / 2025.1.4 |
+| Configuração | `application.properties` | `application.yml` com perfil local | `application.yml` com variáveis de ambiente |
+| Lombok, SLF4J, `banner.txt` | Pedido | Sim; log com traceId, logstash-encoder e AOP | Sim; log em ficheiro rotativo por serviço |
+| Base de dados | H2, depois PostgreSQL | 6 PostgreSQL e Redis (cache) | 4 PostgreSQL; H2 nos testes |
+| Esquema e dados | `ddl-auto` | Liquibase | `ddl-auto` e `data.sql` |
+| Gestão da BD | pgAdmin, Adminer ou phpMyAdmin | Não tem | Adminer |
+| `@Query` e auditoria | JPQL; `@CreatedDate`/`@LastModifiedDate` | Por categoria e ano; JPA auditing e Envers | Por categoria até um preço; JPA auditing |
+| DTO e mapeamento | ModelMapper | MapStruct | ModelMapper |
+| Erros | `@ControllerAdvice` com o nome do serviço | Envelope `Result` com o campo `service` | `{servico, estado, mensagem}`; 500 genérico e 503 |
+| Gateway e Eureka | Pedido | Sim (`/gameshop/api`) | Sim (`/api`, rotas `lb://`); a gateway serve também a interface |
+| Entre serviços | RestTemplate, WebClient ou Feign | Feign com Resilience4j | Feign com Resilience4j |
+| RabbitMQ | `MQConfig`, TopicExchange, JSON | SAGA orquestrada com compensação | SAGA orquestrada com compensação, idempotência e publicação depois do commit |
+| Tracing e métricas | Só referido | Micrometer, OTLP e Jaeger; Prometheus | OpenTelemetry (OTLP) e Jaeger; sem Prometheus |
+| Swagger | Não aparece | springdoc em cada serviço | springdoc em cada serviço; Swagger UI única na gateway |
+| Testes | Todos os endpoints, MockMvc | 96 | 56, incluindo o Feign com 2 instâncias e o circuit breaker |
+| Postman | Pedido | 47 pedidos | 37 pedidos, com os erros |
+| Docker | Dockerfile e Compose | JRE 17 Alpine, utilizador spring; Compose com healthchecks | Igual; Compose `bikeshop-infra` e `bikeshop-apps` |
+| Docker Hub | `tag` e `push` com versão | Não publica | `8220800/bikeshop-*` 1.0 e 2.0 |
+| Kubernetes | Deployment com 3 réplicas e Service | ConfigMap, Secret, probes; 2 réplicas num serviço; versão 1.1 | ConfigMap, Secret, probes; catálogo com 2 réplicas; versão 2.0 do Docker Hub com rolling update |
+| Arranque | IntelliJ | `.run/`, `launch.json`, `RUNBOOK.html` | `.run/`, `launch.json`, `RUNBOOK.html` com um seletor por forma de arrancar |
+
+Tabela 10: MTSDS, GameShop e BikeShop.
+
+**Síntese.**
+- **Os dois cumprem o obrigatório das aulas.**
+- **O GameShop vai além dos slides em muitas frentes:** Liquibase, Envers, MapStruct, Redis, Prometheus e AOP. Algumas destas ferramentas substituem as que as aulas ensinam, por exemplo o MapStruct em vez do ModelMapper e o Liquibase em vez do `ddl-auto`.
+- **O BikeShop segue os slides à letra e soma só três boas práticas de 2026** (circuit breaker, tracing e Swagger), mais a versão suportada do Spring Boot. Cobre também dois exercícios que o GameShop não tem: o Feign testado com duas instâncias e a publicação de versões no Docker Hub.
+- **Falta nos dois:** registar quem acedeu aos dados e enviar os erros por email.
+
+## 14. Ferramentas além dos slides (2026)
+
+Pesquisa feita em outubro de 2026 sobre as ferramentas que o GameShop tem e os slides não pedem: o que é recomendado hoje e o que faz sentido no BikeShop. As fontes estão no fim da secção.
+
+| Ferramenta | Recomendação em 2026 | No BikeShop | Porquê |
+|---|---|---|---|
+| Spring Boot 4.1 e Spring Cloud 2025.1 | O 3.5 e o Spring Cloud 2025.0 deixaram de ter suporte open-source a 30 de junho de 2026; o 4.1 tem suporte até julho de 2027 | Feito: 4.1.2 e 2025.1.4 | Não ficar numa versão sem correções de segurança |
+| Resilience4j | Circuit breaker nos clientes HTTP entre serviços; o Hystrix está descontinuado | Feito: encomendas → catálogo | Com o catálogo em baixo, a encomenda esperava pelo timeout e dava 500; agora dá 503 e, com o circuito aberto, falha em milissegundos |
+| OpenTelemetry e Jaeger | A API Micrometer com exportação OTLP é o padrão; o Boot 4 tem o `spring-boot-starter-opentelemetry` | Feito: 5 serviços e o Jaeger no Compose | A SAGA passa por 5 serviços e pelo RabbitMQ; um trace mostra o caminho todo e onde se perde tempo |
+| springdoc (OpenAPI e Swagger UI) | Documentação padrão das APIs Spring; a linha 3.x é a do Boot 4; agregada na gateway | Feito: Swagger UI na gateway | Barato e útil para testar sem o Postman |
+| OpenFeign | O projeto está feature-complete (só correções); a sucessora são as HTTP Service Clients do Spring Framework 7 | Mantido | É o que o slide 04 pede e continua suportado no Spring Cloud 2025.1 |
+| Flyway / Liquibase | Migrações versionadas em vez do `ddl-auto`; o Flyway é o padrão, o Liquibase quando é preciso rollback | Não (14.2) | O slide 03 ensina `ddl-auto` com `data.sql` |
+| MapStruct | Preferido ao ModelMapper: o mapeamento é gerado na compilação, mais rápido e verificado | Não (14.2) | O slide 04 ensina o ModelMapper |
+| Hibernate Envers | Para guardar o histórico das alterações, quando o negócio o exige | Não (14.2) | Não há requisito de histórico |
+| Redis | Cache de leitura quando há carga | Não (14.2) | Um catálogo pequeno não precisa |
+| Prometheus | Métricas, normalmente com Grafana | Não (14.2) | Sem Grafana não acrescenta muito; o tracing cobre o diagnóstico |
+
+Tabela 11: Ferramentas além dos slides.
+
+### 14.1 Como se usam
+
+- **Circuit breaker:**
+  - parar o catálogo (`docker stop bikeshop-catalogo`) e criar uma encomenda: dá 503;
+  - às 5 falhas, o circuito abre durante 10 s;
+  - configuração em `EncomendasConfig`; teste em `CatalogoIndisponivelTest`.
+- **Tracing:** em http://localhost:16687, serviço `bikeshop-gateway`, **Find Traces**. A encomenda (`http post`) tem 12 spans e passa por 5 serviços.
+- **Swagger:** em http://localhost:9080/swagger-ui.html, escolher o serviço em "Select a definition". O "Try it out" faz o pedido pela gateway.
+
+### 14.2 Para o futuro, se o docente aprovar
+
+Ficam registadas para se aplicarem só com autorização do docente, porque substituem o que as aulas ensinam ou não têm necessidade no BikeShop hoje.
+
+| Ferramenta | Para que serviria | O que mudaria | Porque não agora |
+|---|---|---|---|
+| Flyway | Esquema e dados versionados, iguais em todos os ambientes | `spring-boot-starter-flyway`; `db/migration/V1__esquema.sql` e `V2__dados.sql` em cada serviço (substituem o `data.sql`); `ddl-auto: validate`; nos testes o Flyway corre no H2 e testa o SQL | O slide 03 ensina `ddl-auto` com `data.sql` |
+| Liquibase | O mesmo, com rollback automático (é o que o GameShop usa) | `liquibase-core`; `db/changelog` com um changelog YAML e ficheiros SQL numerados; `ddl-auto: validate` | Mais peças que o Flyway, para um rollback de que o BikeShop não precisa |
+| MapStruct | Mapeamento entidade ↔ DTO gerado na compilação | `mapstruct` e `mapstruct-processor` (com `lombok-mapstruct-binding`); uma interface `@Mapper` por serviço no lugar do `ModelMapper` | O slide 04 ensina o ModelMapper |
+| Hibernate Envers | Histórico de cada alteração (tabelas `_AUD`) | `hibernate-envers`; `@Audited` nas entidades | Não há requisito de histórico; o "quem acedeu" do MedicalControl precisa primeiro de utilizadores |
+| Redis | Cache das leituras do catálogo | `spring-boot-starter-data-redis` e `-cache`; `@Cacheable` nas leituras e `@CacheEvict` nas alterações; Redis no Compose | O catálogo é pequeno e rápido |
+| Prometheus e Grafana | Métricas (pedidos, latência, JVM) e painéis | `micrometer-registry-prometheus`; expor `/actuator/prometheus`; Prometheus e Grafana no Compose | Sem painéis não acrescenta muito; o tracing já cobre o diagnóstico |
+| HTTP Service Clients | O cliente HTTP que sucede ao Feign no Spring Framework 7 | `CatalogoClient` com `@HttpExchange`/`@GetExchange`, `@ImportHttpServices` e `RestClient` com `@LoadBalanced`; o circuit breaker pelo Spring Cloud CircuitBreaker | O slide 04 pede OpenFeign, que continua suportado |
+
+Tabela 12: Ferramentas guardadas para o futuro.
+
+### 14.3 Fontes
+
+- [OpenTelemetry with Spring Boot (spring.io, novembro de 2025)](https://spring.io/blog/2025/11/18/opentelemetry-with-spring-boot/)
+- [Spring Boot 3.5.16, a última versão OSS do 3.5 (spring.io, junho de 2026)](https://spring.io/blog/2026/06/25/spring-boot-3-5-16-available-now/)
+- [Spring Cloud 2025.1.2, compatível com o Spring Boot 4.1 (spring.io, junho de 2026)](https://spring.io/blog/2026/06/11/spring-cloud-2025-1-2-aka-oakwood-has-been-released/)
+- [Spring Cloud OpenFeign: projeto feature-complete](https://docs.spring.io/spring-cloud-openfeign/reference/)
+- [Spring Cloud CircuitBreaker com Resilience4j](https://docs.spring.io/spring-cloud-circuitbreaker/reference/3.3/spring-cloud-circuitbreaker-resilience4j.html)
+- [Spring AMQP: conversores de mensagens (Jackson 3)](https://docs.spring.io/spring-amqp/reference/4.2/amqp/message-converters.html)
+- [Spring Cloud Gateway com OpenAPI (Baeldung)](https://www.baeldung.com/spring-cloud-gateway-integrate-openapi)
+- [Flyway vs Liquibase em 2026](https://stevenpg.com/posts/flyway-vs-liquibase-2026/)
+- [Desempenho dos frameworks de mapeamento (Baeldung)](https://www.baeldung.com/java-performance-mapping-frameworks)
+- [Migração para os starters modulares do Spring Boot 4 (OpenRewrite)](https://docs.openrewrite.org/recipes/java/spring/boot4/migratetomodularstarters)
