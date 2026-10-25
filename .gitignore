@@ -11,6 +11,3 @@ logs/
 .project
 .settings/
 .factorypath
-
-### Material da UC (slides), fica fora do Git ###
-docs/

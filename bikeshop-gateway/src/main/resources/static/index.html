@@ -16,7 +16,7 @@
     <section class="hero">
         <div class="hero-text">
             <p class="eyebrow">Projeto prático · MTSDS 2026</p>
-            <h1>Peças para a tua e-bike, servidas por <span class="grad">6 microsserviços</span></h1>
+            <h1>Peças para a sua e-bike, servidas por <span class="grad">8 microsserviços</span></h1>
             <p class="lead">Baterias, motores, travões e tudo o que mantém a bicicleta elétrica a andar. Cada equipa explica como construiu os seus serviços: o que fazem, os dados, a API, as mensagens e as decisões. Em cada ficha há um painel para experimentar o serviço ao vivo.</p>
             <div class="actions">
                 <a class="btn primary" href="loja.html">Abrir a loja</a>
@@ -60,7 +60,7 @@
     <section id="grupo" class="section" aria-labelledby="grupo-title">
         <div class="section-head">
             <h2 id="grupo-title">O grupo</h2>
-            <p>Quatro equipas, uma por elemento e cada uma com a sua cor, com o nome do domínio de que tratam: Catálogo, Encomenda, Armazém e Pagamento.</p>
+            <p>Quatro equipas, uma por elemento, cada uma com a sua cor e dois microsserviços, e com o nome do domínio de que tratam: Catálogo, Encomenda, Armazém e Pagamento.</p>
         </div>
         <div class="team" id="team"></div>
     </section>
@@ -68,7 +68,7 @@
     <section id="saga" class="section" aria-labelledby="saga-title">
         <div class="section-head">
             <h2 id="saga-title">A SAGA da encomenda</h2>
-            <p>A encomenda conduz os passos (SAGA orquestrada). Não há transação comum: cada passo é local e, se o pagamento for recusado, o stock liberta o que reservou. Depois de paga, a encomenda segue para os envios. Na <a href="loja.html">loja</a> vê estes passos a acontecer.</p>
+            <p>A encomenda conduz os passos (SAGA orquestrada). Não há transação comum: cada passo é local e, se o pagamento for recusado, o stock liberta o que reservou. Depois de paga, a encomenda segue para os envios. Na <a href="loja.html">loja</a>, pode ver estes passos a acontecer.</p>
         </div>
         <ol class="stepper" id="stepper"></ol>
         <div class="table-wrap">
@@ -106,7 +106,7 @@
     <section id="esqueleto" class="section" aria-labelledby="esq-title">
         <div class="section-head">
             <h2 id="esq-title">O mesmo esqueleto em todos os serviços</h2>
-            <p>Os quatro serviços de negócio têm a mesma organização, o que facilita passar de um para o outro.</p>
+            <p>Os seis serviços de negócio têm a mesma organização, o que facilita passar de um para o outro. Os clientes não usam mensagens, por isso não têm a parte do RabbitMQ.</p>
         </div>
         <div class="layers">
             <div class="layer"><strong>controller</strong><span>REST e validação; ErroHandler com o nome do serviço</span></div>

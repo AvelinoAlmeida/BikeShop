@@ -48,6 +48,22 @@
             "mainClass": "pt.bikeshop.encomendas.EncomendasApplication",
             "projectName": "bikeshop-encomendas",
             "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "java",
+            "name": "bikeshop-clientes",
+            "request": "launch",
+            "mainClass": "pt.bikeshop.clientes.ClientesApplication",
+            "projectName": "bikeshop-clientes",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "java",
+            "name": "bikeshop-envios",
+            "request": "launch",
+            "mainClass": "pt.bikeshop.envios.EnviosApplication",
+            "projectName": "bikeshop-envios",
+            "cwd": "${workspaceFolder}"
         }
     ],
     "compounds": [
@@ -59,7 +75,9 @@
                 "bikeshop-catalogo",
                 "bikeshop-stock",
                 "bikeshop-pagamentos",
-                "bikeshop-encomendas"
+                "bikeshop-encomendas",
+                "bikeshop-clientes",
+                "bikeshop-envios"
             ],
             "stopAll": true
         }

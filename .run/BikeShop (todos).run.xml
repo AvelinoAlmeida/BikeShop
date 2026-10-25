@@ -6,6 +6,8 @@
     <toRun name="bikeshop-stock" type="Application" />
     <toRun name="bikeshop-pagamentos" type="Application" />
     <toRun name="bikeshop-encomendas" type="Application" />
+    <toRun name="bikeshop-clientes" type="Application" />
+    <toRun name="bikeshop-envios" type="Application" />
     <method v="2" />
   </configuration>
 </component>

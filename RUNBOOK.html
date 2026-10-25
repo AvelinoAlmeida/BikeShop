@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Runbook · BikeShop</title>
+<title>Runbook · BikeShop 2.0</title>
 <meta name="description" content="Como arrancar o BikeShop: no terminal do Docker Desktop, pelo VS Code, pelo IntelliJ IDEA ou no Minikube.">
 <style>
 :root{--bg:#f4f5fa;--s:#fff;--s2:#eef0f6;--t:#1d2330;--m:#5a6178;--b:#dde1ea;--a:#ff6600;--ai:#b84a00;--ok:#138a4e;--okb:#e3f6ec;--warn:#a15c00;--warnb:#fff2dc;--dk:#ff6600;--vs:#19b6a8;--ij:#e5487f;--k8:#f5a524;color-scheme:light}
@@ -70,7 +70,7 @@ footer{margin:40px 0;color:var(--m);font-size:.85rem}
 <main class="wrap">
 <section class="hero">
   <p class="eyebrow">Runbook</p>
-  <h1>Arrancar o BikeShop</h1>
+  <h1>Arrancar o BikeShop 2.0</h1>
   <p class="lead">Escolha onde quer correr a loja. Os passos mudam conforme a escolha.</p>
   <div class="modos" role="tablist" aria-label="Forma de arrancar">
     <button class="modo dk" role="tab" id="t-docker" aria-controls="docker" aria-selected="true">
@@ -79,11 +79,11 @@ footer{margin:40px 0;color:var(--m);font-size:.85rem}
     </button>
     <button class="modo vs" role="tab" id="t-vscode" aria-controls="vscode" aria-selected="false">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3l4 2v14l-4 2L7 12l10-9z"/><path d="M17 3v18M7 12L3 9v6l4-3"/></svg>
-      <b>VS Code</b><span>Os 6 serviços no editor, com debug.</span>
+      <b>VS Code</b><span>Os 8 serviços no editor, com debug.</span>
     </button>
     <button class="modo ij" role="tab" id="t-intellij" aria-controls="intellij" aria-selected="false">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 17h6M8 7h3M9.5 7v6M8 13h3M14 7v6h3"/></svg>
-      <b>IntelliJ IDEA</b><span>Os 6 serviços no IDE, com debug.</span>
+      <b>IntelliJ IDEA</b><span>Os 8 serviços no IDE, com debug.</span>
     </button>
     <button class="modo k8" role="tab" id="t-k8s" aria-controls="k8s" aria-selected="false">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l8.5 4.5v9L12 22l-8.5-6.5v-9L12 2z"/><circle cx="12" cy="12" r="3"/><path d="M12 5v4M12 15v4M5.5 8.5L9.4 10.5M14.6 13.5l3.9 2M18.5 8.5l-3.9 2M9.4 13.5l-3.9 2"/></svg>
@@ -95,7 +95,7 @@ footer{margin:40px 0;color:var(--m);font-size:.85rem}
 <!-- Docker -->
 <section class="painel dk" id="docker" role="tabpanel" aria-labelledby="t-docker">
   <h2>Docker</h2>
-  <p class="sub">A infraestrutura e os 6 serviços correm em containers. Só é preciso o Docker Desktop e o Java 17 (para compilar).</p>
+  <p class="sub">A infraestrutura e os 8 serviços correm em containers. Só é preciso o Docker Desktop e o Java 17 (para compilar).</p>
   <ol class="steps">
     <li>
       <h3>Abrir o Docker Desktop</h3>
@@ -138,7 +138,7 @@ footer{margin:40px 0;color:var(--m);font-size:.85rem}
 <!-- VS Code -->
 <section class="painel vs" id="vscode" role="tabpanel" aria-labelledby="t-vscode" hidden>
   <h2>VS Code</h2>
-  <p class="sub">Para programar: a infraestrutura fica em Docker e os 6 serviços correm no VS Code, com breakpoints.</p>
+  <p class="sub">Para programar: a infraestrutura fica em Docker e os 8 serviços correm no VS Code, com breakpoints.</p>
   <ol class="steps">
     <li>
       <h3>Abrir o Docker Desktop</h3>
@@ -154,18 +154,18 @@ footer{margin:40px 0;color:var(--m);font-size:.85rem}
     </li>
     <li>
       <h3>Arrancar a infraestrutura</h3>
-      <p>No terminal do VS Code (<kbd>Ctrl</kbd>+<kbd>`</kbd>): 4 PostgreSQL, RabbitMQ, Jaeger e Adminer.</p>
+      <p>No terminal do VS Code (<kbd>Ctrl</kbd>+<kbd>`</kbd>): 6 PostgreSQL, RabbitMQ, Jaeger e Adminer.</p>
       <div class="cmd"><pre>docker compose up -d --wait</pre></div>
       <span class="ok">Container bikeshop-rabbitmq Healthy</span>
       <div class="note">Se os serviços estiverem a correr em Docker, pare-os primeiro, porque usam as mesmas portas: <code>docker compose -f docker-compose.apps.yml down</code></div>
     </li>
     <li>
       <h3>Esperar por "Java: Ready"</h3>
-      <p>Na barra de baixo. Na primeira vez demora, porque importa os 6 módulos Maven.</p>
+      <p>Na barra de baixo. Na primeira vez demora, porque importa os 8 módulos Maven.</p>
     </li>
     <li>
       <h3>Correr "BikeShop (todos)"</h3>
-      <p>Abrir <b>Run and Debug</b> (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd>), escolher <b>BikeShop (todos)</b> na lista de cima e carregar em ▶. Arranca o registo e os outros 5; cada um fica com a sua consola.</p>
+      <p>Abrir <b>Run and Debug</b> (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd>), escolher <b>BikeShop (todos)</b> na lista de cima e carregar em ▶. Arranca o registo e os outros 7; cada um fica com a sua consola.</p>
       <div class="note">Para correr só um, escolha-o na mesma lista (<code>bikeshop-catalogo</code>, …). O <code>bikeshop-registo</code> tem de estar sempre a correr.</div>
     </li>
     <li>
@@ -185,7 +185,7 @@ footer{margin:40px 0;color:var(--m);font-size:.85rem}
 <!-- IntelliJ -->
 <section class="painel ij" id="intellij" role="tabpanel" aria-labelledby="t-intellij" hidden>
   <h2>IntelliJ IDEA</h2>
-  <p class="sub">Para programar: a infraestrutura fica em Docker e os 6 serviços correm no IntelliJ, com breakpoints.</p>
+  <p class="sub">Para programar: a infraestrutura fica em Docker e os 8 serviços correm no IntelliJ, com breakpoints.</p>
   <ol class="steps">
     <li>
       <h3>Abrir o Docker Desktop</h3>
@@ -197,18 +197,18 @@ footer{margin:40px 0;color:var(--m);font-size:.85rem}
     </li>
     <li>
       <h3>Esperar pelo Maven</h3>
-      <p>Até a barra de baixo deixar de indexar e aparecerem os 6 módulos <code>bikeshop-*</code>.</p>
+      <p>Até a barra de baixo deixar de indexar e aparecerem os 8 módulos <code>bikeshop-*</code>.</p>
     </li>
     <li>
       <h3>Arrancar a infraestrutura</h3>
-      <p>No terminal do IntelliJ (<kbd>Alt</kbd>+<kbd>F12</kbd>): 4 PostgreSQL, RabbitMQ, Jaeger e Adminer.</p>
+      <p>No terminal do IntelliJ (<kbd>Alt</kbd>+<kbd>F12</kbd>): 6 PostgreSQL, RabbitMQ, Jaeger e Adminer.</p>
       <div class="cmd"><pre>docker compose up -d --wait</pre></div>
       <span class="ok">Container bikeshop-rabbitmq Healthy</span>
       <div class="note">Se os serviços estiverem a correr em Docker, pare-os primeiro, porque usam as mesmas portas: <code>docker compose -f docker-compose.apps.yml down</code></div>
     </li>
     <li>
       <h3>Correr "BikeShop (todos)"</h3>
-      <p>Na lista de configurações (em cima, à direita), escolher <b>BikeShop (todos)</b> e carregar em ▶. Arranca o registo e os outros 5, cada um no seu separador da janela <b>Run</b>.</p>
+      <p>Na lista de configurações (em cima, à direita), escolher <b>BikeShop (todos)</b> e carregar em ▶. Arranca o registo e os outros 7, cada um no seu separador da janela <b>Run</b>.</p>
       <div class="note">Para correr só um, as configurações estão na pasta <b>BikeShop</b> da mesma lista. O <code>bikeshop-registo</code> tem de estar sempre a correr.</div>
     </li>
     <li>
@@ -228,7 +228,7 @@ footer{margin:40px 0;color:var(--m);font-size:.85rem}
 <!-- Kubernetes -->
 <section class="painel k8" id="k8s" role="tabpanel" aria-labelledby="t-k8s" hidden>
   <h2>Kubernetes (Minikube)</h2>
-  <p class="porque"><b>Porquê?</b> O slide 06 pede o projeto todo no Kubernetes, com réplicas, ConfigMap e Secret, e uma nova versão posta em produção. É opcional: para usar a loja ou programar, basta Docker, VS Code ou IntelliJ. Aqui os 6 serviços correm no cluster (perfil <code>bikeshop-minikube</code>, namespace <code>bikeshop</code>), o catálogo com 2 réplicas; a infraestrutura continua no Docker.</p>
+  <p class="porque"><b>Porquê?</b> O slide 06 pede o projeto todo no Kubernetes, com réplicas, ConfigMap e Secret, e uma nova versão posta em produção. É opcional: para usar a loja ou programar, basta Docker, VS Code ou IntelliJ. Aqui os 8 serviços correm no cluster (perfil <code>bikeshop-minikube</code>, namespace <code>bikeshop</code>), o catálogo com 2 réplicas; a infraestrutura continua no Docker.</p>
   <ol class="steps">
     <li>
       <h3>Abrir o Docker Desktop e o terminal</h3>
@@ -271,12 +271,12 @@ kubectl get pods -n bikeshop</pre></div>
   <thead><tr><th>O quê</th><th>Endereço</th><th>Entrar</th></tr></thead>
   <tbody>
     <tr><td>Interface</td><td><a href="http://localhost:9080/">localhost:9080</a></td><td>-</td></tr>
-    <tr><td>Eureka (serviços registados)</td><td><a href="http://localhost:9761/">localhost:9761</a></td><td>sem login; devem aparecer 5 serviços</td></tr>
+    <tr><td>Eureka (serviços registados)</td><td><a href="http://localhost:9761/">localhost:9761</a></td><td>sem login; devem aparecer 7 serviços</td></tr>
     <tr><td>RabbitMQ (filas da SAGA)</td><td><a href="http://localhost:15673/">localhost:15673</a></td><td><code>bikeshop</code> / <code>bikeshop</code></td></tr>
     <tr><td>Adminer (bases de dados)</td><td><a href="http://localhost:18081/">localhost:18081</a></td><td>Sistema <b>PostgreSQL</b>, servidor <code>bikeshop-postgres-&lt;serviço&gt;</code>, <code>bikeshop</code> / <code>bikeshop</code>, base de dados <code>bikeshop_&lt;serviço&gt;</code></td></tr>
-    <tr><td>Jaeger (traces dos pedidos)</td><td><a href="http://localhost:16687/">localhost:16687</a></td><td>sem login; serviço <code>bikeshop-gateway</code>, Find Traces; uma encomenda passa pelos 5 serviços</td></tr>
+    <tr><td>Jaeger (traces dos pedidos)</td><td><a href="http://localhost:16687/">localhost:16687</a></td><td>sem login; serviço <code>bikeshop-gateway</code>, Find Traces; uma encomenda passa por 6 serviços</td></tr>
     <tr><td>Swagger UI (API de cada serviço)</td><td><a href="http://localhost:9080/swagger-ui.html">localhost:9080/swagger-ui.html</a></td><td>escolher o serviço em "Select a definition"; "Try it out" passa pela gateway</td></tr>
-    <tr><td>Cada serviço responde</td><td><a href="http://localhost:9080/api/pecas/landing">/api/pecas/landing</a>, <a href="http://localhost:9080/api/stock/landing">/api/stock/landing</a>, <a href="http://localhost:9080/api/pagamentos/landing">/api/pagamentos/landing</a>, <a href="http://localhost:9080/api/encomendas/landing">/api/encomendas/landing</a></td><td>-</td></tr>
+    <tr><td>Cada serviço responde</td><td><a href="http://localhost:9080/api/pecas/landing">/api/pecas/landing</a>, <a href="http://localhost:9080/api/stock/landing">/api/stock/landing</a>, <a href="http://localhost:9080/api/pagamentos/landing">/api/pagamentos/landing</a>, <a href="http://localhost:9080/api/encomendas/landing">/api/encomendas/landing</a>, <a href="http://localhost:9080/api/clientes/landing">/api/clientes/landing</a>, <a href="http://localhost:9080/api/envios/landing">/api/envios/landing</a></td><td>-</td></tr>
     <tr><td>Postman</td><td><code>postman/bikeshop.postman_collection.json</code></td><td>importar e correr por ordem (Runner)</td></tr>
   </tbody>
 </table></div>
@@ -289,8 +289,10 @@ kubectl get pods -n bikeshop</pre></div>
     <tr><td>Não aparece o botão Terminal no Docker Desktop</td><td>Versão antiga do Docker Desktop</td><td>Atualizá-lo, ou usar um PowerShell normal na mesma pasta</td></tr>
     <tr><td>503, 500 ou pontos vermelhos no primeiro minuto</td><td>Os serviços ainda se estão a registar no Eureka e a descobrir-se uns aos outros</td><td>Esperar 30 segundos e repetir</td></tr>
     <tr><td><code>Port 9080 was already in use</code> (ou outra porta 908x/9761)</td><td>O serviço já corre noutro sítio (Docker, VS Code, IntelliJ ou terminal)</td><td><code>docker compose -f docker-compose.apps.yml down</code> ou parar no IDE, e arrancar de novo</td></tr>
-    <tr><td>503 "O catálogo está indisponível" ao criar uma encomenda</td><td>Catálogo parado ou lento; depois de 5 falhas o circuit breaker fica aberto 10 s</td><td>Ver se o <code>bikeshop-catalogo</code> está a correr e repetir passados 10 s</td></tr>
+    <tr><td>503 "O catálogo está indisponível" ou "Os clientes estão indisponíveis" ao criar uma encomenda</td><td>Catálogo ou clientes parados ou lentos; depois de 5 falhas o circuit breaker fica aberto 10 s</td><td>Ver se o <code>bikeshop-catalogo</code> e o <code>bikeshop-clientes</code> estão a correr e repetir passados 10 s</td></tr>
     <tr><td>O Jaeger não mostra traces</td><td>O Jaeger arrancou depois dos serviços, ou o pedido ainda não foi enviado (vão em lotes de 5 s)</td><td><code>docker compose up -d --wait</code> e repetir o pedido; esperar uns segundos</td></tr>
+    <tr><td>A encomenda fica PAGA e não passa a ENVIADA; no log das encomendas, <code>encomendas_estado_check</code></td><td>Bases de dados da 1.x: a tabela só aceita os estados antigos</td><td>Uma vez: <code>powershell -ExecutionPolicy Bypass -File scripts\parar.ps1 -ApagarDados</code> e arrancar de novo</td></tr>
+    <tr><td>Mensagens perdidas ou a SAGA não avança com o Minikube ligado</td><td>O cluster e o Docker partilham o RabbitMQ e as bases: os serviços de um consomem as mensagens do outro</td><td>Usar um de cada vez: <code>minikube -p bikeshop-minikube stop</code> ou <code>parar.ps1</code></td></tr>
     <tr><td>A interface não mostra uma alteração ao código</td><td>As imagens Docker têm o JAR antigo</td><td>Arrancar com <code>-Compilar</code></td></tr>
     <tr><td>Adminer: "Unable to connect" ou pede MySQL</td><td>Sistema MySQL (o que vem por omissão) ou servidor <code>localhost</code></td><td>Escolher PostgreSQL e o servidor <code>bikeshop-postgres-&lt;serviço&gt;</code></td></tr>
     <tr><td>VS Code: "BikeShop (todos)" não aparece ou a classe não é encontrada</td><td>Pasta errada, ou o Java ainda não está pronto</td><td>Abrir <code>C:\ESTG\BikeShop</code> e esperar por "Java: Ready"; se persistir, <b>Java: Clean Java Language Server Workspace</b></td></tr>

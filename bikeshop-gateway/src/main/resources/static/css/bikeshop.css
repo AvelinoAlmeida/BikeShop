@@ -365,8 +365,6 @@ button:disabled { cursor: not-allowed; opacity: .45; }
     text-decoration: underline;
 }
 
-.small-link { margin: 0; }
-
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 
 input, select {
@@ -449,7 +447,7 @@ a.tag:hover { border-color: var(--c); }
 
 .section { margin-top: 56px; }
 .section-head { margin-bottom: 20px; }
-.section-head p { margin: 8px 0 0; color: var(--muted); max-width: 75ch; }
+.section-head p { margin: 8px 0 0; color: var(--muted); }
 
 .panel, .svc-section, .arch, .member {
     background: var(--surface);
@@ -730,8 +728,6 @@ pre.cmd { color: var(--text); }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; overflow-wrap: anywhere; }
 
-.big-answer { margin: 0; font-size: 1.05rem; font-weight: 700; }
-
 .bar { display: block; width: 90px; height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
 .bar span { display: block; height: 100%; background: var(--svc); }
 
@@ -743,27 +739,6 @@ pre.cmd { color: var(--text); }
 /* ---------- loja ---------- */
 
 .page-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 20px; }
-
-.shop-tools {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px 16px;
-    padding: 10px 14px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
-}
-
-.switch { display: flex; flex-direction: row; align-items: center; gap: 8px; color: var(--text); font-size: .88rem; cursor: pointer; }
-.switch input { width: auto; accent-color: var(--accent); }
-
-.session { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .88rem; }
-.who-am-i { font-weight: 600; }
-
-@media (max-width: 520px) {
-    .shop-tools, .session { width: 100%; }
-}
 
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 20px; align-items: start; }
 .main-col, .side { display: grid; gap: 20px; min-width: 0; }
@@ -812,13 +787,9 @@ pre.cmd { color: var(--text); }
 
 .cart-total { display: flex; justify-content: space-between; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: .9rem; }
 
-.customer { margin-top: 12px; }
-.customer summary { cursor: pointer; font-size: .9rem; }
-
 .panel > .link { margin-top: 12px; }
 
 .order-head { display: flex; justify-content: space-between; align-items: start; gap: 8px; margin-bottom: 12px; }
-.order-number { font-weight: 700; font-family: var(--mono); overflow-wrap: anywhere; }
 
 .timeline { margin: 0; padding: 0; list-style: none; }
 .timeline li { position: relative; display: grid; grid-template-columns: 20px 1fr auto; gap: 10px; padding: 6px 0; font-size: .9rem; }
@@ -837,77 +808,13 @@ pre.cmd { color: var(--text); }
 @keyframes pulse { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--step, var(--accent)) 30%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .timeline li.current .mark { animation: none; } }
 
-.totals { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; margin: 14px 0 0; padding-top: 10px; border-top: 1px solid var(--border); font-size: .88rem; }
-.totals dt { color: var(--muted); }
-.totals dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
-.totals .grand { font-weight: 800; color: var(--text); }
-
 .payment { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
 
 /* Barra de gestão do catálogo (modo administrador), por cima dos produtos. */
-.admin-bar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px 16px;
-    margin-bottom: 14px;
-    padding: 10px 14px;
-    border: 1px dashed var(--warn);
-    border-radius: 12px;
-    background: var(--warn-bg);
-}
-
-.admin-bar-title { font-weight: 700; color: var(--warn); }
-.admin-bar .actions { margin-top: 0; }
 
 /* Botão que provoca o erro de SKU inexistente: destacado a vermelho, com ícone de alerta. */
-.danger-btn {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    margin-top: 14px;
-    padding: 10px 14px;
-    border: 1px solid var(--bad);
-    border-radius: 10px;
-    background: var(--bad-bg);
-    color: var(--bad);
-    font-weight: 700;
-    text-align: left;
-}
-
-.danger-btn svg { width: 22px; height: 22px; flex: none; }
-.danger-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--bad) 18%, var(--bad-bg)); }
 
 /* Janelas (dialog): produto, categoria e clientes registados. */
-.modal {
-    width: min(640px, calc(100vw - 32px));
-    max-height: calc(100vh - 48px);
-    padding: 22px;
-    border: 1px solid var(--border);
-    border-top: 5px solid var(--c, var(--accent));
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--text);
-    box-shadow: 0 24px 60px rgba(0, 0, 0, .35);
-}
-
-.modal::backdrop { background: rgba(8, 10, 22, .6); backdrop-filter: blur(3px); }
-.wide-modal { width: min(920px, calc(100vw - 32px)); }
-.modal .form { margin-top: 0; }
-.modal-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-.modal-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
-.modal-actions .spacer { flex: 1; }
-.modal .table-wrap { margin-top: 10px; max-height: 55vh; overflow: auto; }
-.cl-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.cl-tools > input { flex: 1 1 260px; }
-.cl-tools .inline { flex: 1 1 300px; }
-.small-btn { padding: 5px 12px; font-size: .82rem; }
-
-.admin-row { display: flex; gap: 12px; padding-top: 6px; border-top: 1px dashed var(--border); }
-.admin-row .link { margin: 0; }
-.admin-row .danger { color: var(--bad); }
 
 .history { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
 
@@ -965,7 +872,6 @@ pre.cmd { color: var(--text); }
 .timeline li.skipped { opacity: .4; }
 .timeline .when code { font-size: .74rem; }
 .lines { margin-top: 14px; }
-.cart-form { margin-top: 12px; }
 
 /* Visão geral: as duas tabelas "ao vivo" lado a lado. */
 .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }

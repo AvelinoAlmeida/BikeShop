@@ -1,12 +1,19 @@
-# BikeShop
+# BikeShop 2.0
 
 Loja de peças para bicicletas elétricas (2026), feita em microsserviços com Spring Boot e Spring Cloud. É um projeto de estudo: pequeno de propósito, para se perceber como as peças encaixam. Usa as tecnologias dos slides da unidade curricular de Microsserviços (MTSDS, ESTG): Eureka, Gateway, OpenFeign, RabbitMQ, Docker e Kubernetes. Além dos slides, tem três boas práticas de 2026: circuit breaker, tracing e Swagger (secção 14).
 
-Os pagamentos são simulados: não há banco nem cartão.
+Os pagamentos e os envios são simulados: não há banco, cartão nem transportadora.
+
+| Versão | Data | O que mudou |
+|---|---|---|
+| 1.0 | outubro de 2026 | 6 microsserviços (4 de negócio), SAGA entre o stock e os pagamentos, Docker e Minikube |
+| 2.0 | 25.10.2026 | 8 microsserviços (2 por equipa): clientes e envios; a encomenda passa a ENVIADA. Spring Boot 4.1, circuit breaker, tracing com Jaeger e Swagger |
+
+Tabela 0: Versões. O resultado do teste da 2.0 está no fim do `RUNBOOK.html`.
 
 ## 1. Arquitetura
 
-O browser só fala com a gateway. A gateway encontra cada serviço no registo (Eureka) pelo nome e encaminha o pedido. Cada serviço de negócio tem a sua base de dados. A encomenda chama o catálogo por HTTP (Feign) para saber nomes e preços. Com o stock e os pagamentos fala por mensagens (RabbitMQ).
+O browser só fala com a gateway. A gateway encontra cada serviço no registo (Eureka) pelo nome e encaminha o pedido. Cada serviço de negócio tem a sua base de dados. A encomenda chama o catálogo e os clientes por HTTP (Feign): para saber nomes e preços e para registar quem compra. Com o stock, os pagamentos e os envios fala por mensagens (RabbitMQ).
 
 ```mermaid
 flowchart LR
@@ -16,38 +23,47 @@ flowchart LR
     G --> S[bikeshop-stock :9082]
     G --> P[bikeshop-pagamentos :9083]
     G --> E[bikeshop-encomendas :9084]
+    G --> CL[bikeshop-clientes :9085]
+    G --> V[bikeshop-envios :9086]
     E -- Feign --> C
+    E -- Feign --> CL
     E <-- RabbitMQ --> S
     E <-- RabbitMQ --> P
+    E <-- RabbitMQ --> V
     C --- DC[(bikeshop_catalogo)]
     S --- DS[(bikeshop_stock)]
     P --- DP[(bikeshop_pagamentos)]
     E --- DE[(bikeshop_encomendas)]
+    CL --- DCL[(bikeshop_clientes)]
+    V --- DV[(bikeshop_envios)]
 ```
 
-| Módulo | Porta | O que faz | Base de dados |
-|---|---|---|---|
-| bikeshop-registo | 9761 | Eureka: onde os serviços se registam | nenhuma |
-| bikeshop-gateway | 9080 | Entrada única (/api/**) e interface web | nenhuma |
-| bikeshop-catalogo | 9081 | Categorias e peças, com preço | bikeshop_catalogo |
-| bikeshop-stock | 9082 | Quantidades em armazém e reservas | bikeshop_stock |
-| bikeshop-pagamentos | 9083 | Pagamento simulado (aprovar ou recusar) | bikeshop_pagamentos |
-| bikeshop-encomendas | 9084 | Encomendas; orquestra a SAGA | bikeshop_encomendas |
+| Módulo | Porta | O que faz | Base de dados | Equipa |
+|---|---|---|---|---|
+| bikeshop-catalogo | 9081 | Categorias e peças, com preço | bikeshop_catalogo | Catálogo |
+| bikeshop-gateway | 9080 | Entrada única (/api/**) e interface web | nenhuma | Catálogo |
+| bikeshop-encomendas | 9084 | Encomendas; orquestra a SAGA | bikeshop_encomendas | Encomenda |
+| bikeshop-clientes | 9085 | Clientes e moradas de entrega | bikeshop_clientes | Encomenda |
+| bikeshop-stock | 9082 | Quantidades em armazém e reservas | bikeshop_stock | Armazém |
+| bikeshop-envios | 9086 | Envio de cada encomenda paga (simulado) | bikeshop_envios | Armazém |
+| bikeshop-pagamentos | 9083 | Pagamento simulado (aprovar ou recusar) | bikeshop_pagamentos | Pagamento |
+| bikeshop-registo | 9761 | Eureka: onde os serviços se registam | nenhuma | Pagamento |
 
-Tabela 1: Módulos.
+Tabela 1: Módulos. São 8 microsserviços, 2 por equipa (um elemento do grupo por equipa).
 
 Cada serviço segue a mesma organização: controller, service, repository, entity, dto, configuration (com a MQConfig), messages, listeners, publishers e exception.
 
 ## 2. A SAGA da encomenda
 
-Uma encomenda mexe em três serviços. Não há uma transação comum: cada passo é local e, se algo falhar depois, um passo de compensação desfaz o que já foi feito. Quem conduz é a encomenda (SAGA orquestrada).
+Uma encomenda mexe em quatro serviços por mensagens (e em dois por Feign, antes de começar). Não há uma transação comum: cada passo é local e, se algo falhar depois, um passo de compensação desfaz o que já foi feito. Quem conduz é a encomenda (SAGA orquestrada).
 
 ```mermaid
 sequenceDiagram
     participant E as encomendas
     participant S as stock
     participant P as pagamentos
-    Note over E: POST /api/encomendas (PENDENTE)
+    participant V as envios
+    Note over E: POST /api/encomendas: preços do catálogo e cliente (Feign), PENDENTE
     E->>S: stock.reservar
     alt há stock
         S->>E: stock.reservado
@@ -58,6 +74,10 @@ sequenceDiagram
             P->>E: pagamento.aprovado
             Note over E: PAGA
             E->>S: stock.confirmar
+            E->>V: envio.criar
+            Note over V: EM_PREPARACAO (espera pelo armazém)
+            V->>E: envio.expedido
+            Note over E: ENVIADA
         else recusado
             P->>E: pagamento.recusado
             Note over E: CANCELADA
@@ -81,8 +101,10 @@ Todas as mensagens passam pela exchange `bikeshop.eventos` (TopicExchange). Cada
 | pagamento.recusado | pagamentos | encomendas.pagamento-recusado.fila | encomendas |
 | stock.confirmar | encomendas | stock.confirmar.fila | stock |
 | stock.libertar | encomendas | stock.libertar.fila | stock |
+| envio.criar | encomendas | envios.criar.fila | envios |
+| envio.expedido | envios | encomendas.envio-expedido.fila | encomendas |
 
-Tabela 2: Mensagens da SAGA.
+Tabela 2: Mensagens da SAGA (10).
 
 Três regras tornam a SAGA segura:
 
@@ -117,6 +139,8 @@ O passo a passo, com os resultados esperados e o que fazer se correr mal, está 
 
 **Requisitos:** Docker Desktop. Para compilar, também o JDK 17 (o Maven vem no projeto, `mvnw`).
 
+**Passar da 1.x para a 2.0:** a primeira vez, arrancar com as bases de dados vazias (`.\scripts\parar.ps1 -ApagarDados`). A tabela das encomendas da 1.x tem uma restrição que só aceita os estados antigos e o `ddl-auto: update` não a altera; com migrações (Flyway, secção 14.2) seria um `V2__...sql`. O Minikube e o Docker partilham o RabbitMQ e as bases de dados: com os dois ligados, os serviços de um consomem as mensagens do outro.
+
 **Tudo em Docker (o mais simples):**
 
 ```powershell
@@ -130,12 +154,12 @@ A interface fica em http://localhost:9080/, a consola do RabbitMQ em http://loca
 **Passo a passo, sem o script:**
 
 ```powershell
-docker compose up -d --wait                                # PostgreSQL x4, RabbitMQ, Jaeger e Adminer (grupo bikeshop-infra)
+docker compose up -d --wait                                # PostgreSQL x6, RabbitMQ, Jaeger e Adminer (grupo bikeshop-infra)
 .\mvnw.cmd package                                         # compila e corre os testes
-docker compose -f docker-compose.apps.yml up -d --build    # os 6 serviços (grupo bikeshop-apps)
+docker compose -f docker-compose.apps.yml up -d --build    # os 8 serviços (grupo bikeshop-apps)
 ```
 
-**Serviços no anfitrião (para programar):** com a infraestrutura a correr, arrancar cada módulo no IDE ou com `java -jar <módulo>\target\<módulo>.jar`, primeiro o `bikeshop-registo`. No IntelliJ e no VS Code há a configuração **BikeShop (todos)**, que arranca os 6 (`.run/` e `.vscode/launch.json`). Os valores por omissão do `application.yml` apontam para `localhost` e para as portas da Tabela 5.
+**Serviços no anfitrião (para programar):** com a infraestrutura a correr, arrancar cada módulo no IDE ou com `java -jar <módulo>\target\<módulo>.jar`, primeiro o `bikeshop-registo`. No IntelliJ e no VS Code há a configuração **BikeShop (todos)**, que arranca os 8 (`.run/` e `.vscode/launch.json`). Os valores por omissão do `application.yml` apontam para `localhost` e para as portas da Tabela 5.
 
 **Kubernetes (Minikube):**
 
@@ -145,7 +169,7 @@ kubectl port-forward -n bikeshop svc/bikeshop-gateway 19080:80  # interface em h
 .\scripts\e2e-test.ps1 -Gateway http://localhost:19080
 ```
 
-No cluster correm os 6 serviços, o catálogo com 2 réplicas. O PostgreSQL, o RabbitMQ e o Jaeger ficam no Docker Compose e os pods chegam-lhes por `host.minikube.internal`, como o slide 06 sugere para a persistência.
+No cluster correm os 8 serviços, o catálogo com 2 réplicas. O PostgreSQL, o RabbitMQ e o Jaeger ficam no Docker Compose e os pods chegam-lhes por `host.minikube.internal`, como o slide 06 sugere para a persistência.
 
 **Ver o balanceamento (slides 04 e 06):** cada pedido a `GET /api/pecas/{referencia}` escreve no log a instância que respondeu. Depois de alguns pedidos (por exemplo, o `e2e-test.ps1`), os dois pods aparecem:
 
@@ -168,16 +192,16 @@ kubectl rollout undo deployment/bikeshop-catalogo -n bikeshop           # voltar
 
 O `k8s-deploy.ps1` volta a aplicar os manifestos de `k8s/`, com as imagens locais 1.0.
 
-**Catálogo em baixo (circuit breaker):** com o catálogo parado, criar uma encomenda dá 503 ("O catálogo está indisponível") ao fim de cerca de 1 s. Depois de 5 falhas o circuito abre e, durante 10 s, a resposta é imediata, sem tentar o catálogo:
+**Catálogo ou clientes em baixo (circuit breaker):** com um deles parado, criar uma encomenda dá 503 ("O catálogo está indisponível" ou "Os clientes estão indisponíveis") ao fim de cerca de 1 s. Depois de 5 falhas o circuito abre e, durante 10 s, a resposta é imediata, sem tentar o catálogo:
 
 ```powershell
 docker stop bikeshop-catalogo      # criar encomendas na loja: 503
 docker start bikeshop-catalogo     # passado o arranque, volta a funcionar
 ```
 
-**Traces (Jaeger):** em http://localhost:16687, escolher o serviço `bikeshop-gateway` e **Find Traces**. Uma encomenda aparece num só trace: gateway, encomendas, circuit breaker e Feign até ao catálogo, e as mensagens do RabbitMQ pelo stock, encomendas e pagamentos.
+**Traces (Jaeger):** em http://localhost:16687, escolher o serviço `bikeshop-gateway` e **Find Traces**. Uma encomenda aparece num só trace com 6 serviços: gateway, encomendas, Feign até ao catálogo e aos clientes (cada um pelo circuit breaker) e as mensagens do RabbitMQ pelo stock e pelos pagamentos. Aprovar o pagamento abre outro trace, que segue até ao stock e aos envios.
 
-**Postman (slides 03 e 04):** importar `postman/bikeshop.postman_collection.json` e correr a coleção por ordem (Runner). São 37 pedidos pela gateway, com todos os endpoints e os casos de erro (404, 400 de validação, JSON mal formado, UUID inválido, aprovar duas vezes). Cada pedido tem testes do código HTTP; a encomenda criada fica na variável `encomendaId` para os pedidos seguintes.
+**Postman (slides 03 e 04):** importar `postman/bikeshop.postman_collection.json` e correr a coleção por ordem (Runner). São 53 pedidos pela gateway, com as pastas Clientes e Envios, com todos os endpoints e os casos de erro (404, 400 de validação, JSON mal formado, UUID inválido, aprovar duas vezes). Cada pedido tem testes do código HTTP; a encomenda criada fica na variável `encomendaId` para os pedidos seguintes.
 
 ## 5. Nomes
 
@@ -187,7 +211,7 @@ Os nomes dizem o que cada coisa é. O prefixo `bikeshop-` separa este projeto de
 |---|---|
 | Módulo Maven, JAR, imagem, container, Deployment e nome no Eureka | bikeshop-catalogo (e assim para os outros) |
 | Grupos no Docker Desktop | bikeshop-infra (infraestrutura) e bikeshop-apps (serviços) |
-| Bases de dados | bikeshop-postgres-catalogo, -stock, -pagamentos e -encomendas |
+| Bases de dados | bikeshop-postgres-catalogo, -stock, -pagamentos, -encomendas, -clientes e -envios |
 | Broker | bikeshop-rabbitmq |
 | Gestão das BD | bikeshop-adminer |
 | Traces | bikeshop-jaeger |
@@ -200,8 +224,8 @@ Tabela 4: Nomes no Docker e no Kubernetes.
 
 | Porta | O quê |
 |---|---|
-| 9080 a 9084, 9761 | Serviços |
-| 55432 a 55435 | PostgreSQL (catálogo, stock, pagamentos, encomendas) |
+| 9080 a 9086, 9761 | Serviços |
+| 55432 a 55437 | PostgreSQL (catálogo, stock, pagamentos, encomendas, clientes, envios) |
 | 5673, 15673 | RabbitMQ (AMQP e consola) |
 | 18081 | Adminer (gestão das bases de dados) |
 | 16687, 4319 | Jaeger (interface e OTLP para os serviços no anfitrião) |
@@ -223,8 +247,13 @@ Todos os caminhos passam pela gateway (http://localhost:9080).
 | POST /api/encomendas, GET /api/encomendas/{id} | encomendas | Cria (202, PENDENTE) e consulta |
 | GET /api/pagamentos/encomenda/{id} | pagamentos | Pagamento de uma encomenda |
 | POST /api/pagamentos/encomenda/{id}/aprovar ou /recusar | pagamentos | Simula a resposta do banco |
+| GET /api/clientes, GET /api/clientes/{id}, GET /api/clientes/email/{email} | clientes | Consulta dos clientes |
+| POST /api/clientes, PUT e DELETE /api/clientes/{id} | clientes | Gestão dos clientes (201, 204; email e código postal validados) |
+| POST /api/clientes/registo | clientes | Devolve ou regista o cliente pelo email (usado pela encomenda) |
+| GET /api/envios, GET /api/envios/encomenda/{id} | envios | Envios e o envio de uma encomenda |
+| POST /api/envios/encomenda/{id}/expedir | envios | Simula a saída do armazém: a encomenda passa a ENVIADA |
 | GET /api/<recurso>/landing | todos | Confirma que o serviço responde |
-| GET /swagger-ui.html | gateway | Swagger UI com a API dos 4 serviços |
+| GET /swagger-ui.html | gateway | Swagger UI com a API dos 6 serviços de negócio |
 | GET /api-docs/<serviço> | gateway | Documento OpenAPI de um serviço (vem do seu `/v3/api-docs`) |
 
 Tabela 6: API.
@@ -239,17 +268,17 @@ POST /api/encomendas
 
 ## 7. Testes
 
-`.\mvnw.cmd verify` corre 56 testes, sem Docker (H2 em memória e RabbitMQ simulado):
+`.\mvnw.cmd verify` corre 78 testes, sem Docker (H2 em memória e RabbitMQ simulado):
 
-- **unitários da SAGA:** a encomenda (agregado e estados), o serviço de encomendas, o stock (tudo ou nada, repetição, confirmar e libertar) e os pagamentos;
-- **@DataJpaTest:** a query JPQL, a procura por marca, a auditoria e a gravação da encomenda com as linhas;
+- **unitários da SAGA:** a encomenda (agregado e estados, até ENVIADA), o serviço de encomendas (cliente, envio, clientes em baixo), o stock (tudo ou nada, repetição, confirmar e libertar), os pagamentos, os envios e os clientes;
+- **@DataJpaTest:** a query JPQL, a procura por marca, a procura de clientes por email, a auditoria e a gravação da encomenda com as linhas;
 - **OpenFeign (`CatalogoClientTest`):** o `CatalogoClient` a sério, contra duas instâncias falsas do catálogo declaradas no discovery simples. Confirma o JSON, que o LoadBalancer reparte os pedidos pelas duas e que o 404 do catálogo chega à encomenda como 400;
 - **Circuit breaker (`CatalogoIndisponivelTest`):** com o catálogo numa porta sem ninguém, a encomenda dá `ServicoIndisponivelException` (503) e, depois de 5 falhas, o circuito abre e a chamada falha logo;
-- **@WebMvcTest:** os controllers dos quatro serviços de negócio, incluindo o `/landing`, o erro 404 com o nome do serviço e os 400 de validação, de JSON mal formado e de identificador inválido, e o 503 com o catálogo em baixo.
+- **@WebMvcTest:** os controllers dos seis serviços de negócio, incluindo o `/landing`, o erro 404 com o nome do serviço e os 400 de validação, de JSON mal formado e de identificador inválido, e o 503 com o catálogo em baixo.
 
 Nos testes o log fica só na consola (`src/test/resources/logback-test.xml`) e os traces não são exportados.
 
-O `scripts\e2e-test.ps1` testa o sistema a correr, pela gateway: encomenda paga com o stock em baixo, pagamento recusado com o stock libertado (compensação) e encomenda sem stock.
+O `scripts\e2e-test.ps1` testa o sistema a correr, pela gateway, em cerca de 10 s: encomenda com o cliente registado, paga com o stock em baixo, enviada com o código do envio, pagamento recusado com o stock libertado (compensação) e encomenda sem stock.
 
 ## 8. Interface
 
@@ -268,10 +297,10 @@ Os textos das fichas, as equipas e as ferramentas estão em `js/servicos.js`. Pa
 pom.xml                    pai Maven (versões e plugins)
 bikeshop-<serviço>/        um módulo por serviço, com o seu Dockerfile
 docker-compose.yml         infraestrutura (grupo bikeshop-infra)
-docker-compose.apps.yml    os 6 serviços (grupo bikeshop-apps)
+docker-compose.apps.yml    os 8 serviços (grupo bikeshop-apps)
 k8s/                       namespace, ConfigMap, Secret e um manifesto por serviço
 scripts/                   arrancar, parar, e2e-test, k8s-deploy, k8s-atualizar e publicar-dockerhub
-postman/                   coleção Postman (a pasta docs/, com os slides, fica fora do Git)
+postman/                   coleção Postman
 RUNBOOK.html               como arrancar: Docker, IDE e Kubernetes
 .run/, .vscode/            arranque pelo IntelliJ e pelo VS Code (BikeShop (todos))
 ```
@@ -298,7 +327,7 @@ O que é preciso saber antes de mexer:
 - **Os listeners só delegam no service**; a idempotência e as transições de estado ficam no service e na entidade (`Encomenda.marcarReservada`, `marcarPaga`, `cancelar`). Com `default-requeue-rejected: false`, uma mensagem que lança exceção é descartada, não repetida.
 - **Interface:** os ficheiros estão em `bikeshop-gateway/src/main/resources/static` e vão dentro do JAR da gateway. Depois de os alterar: `.\mvnw.cmd -pl bikeshop-gateway package -DskipTests` e `docker compose -f docker-compose.apps.yml up -d --build bikeshop-gateway`.
 - **Uma rota nova na API** tem de ser acrescentada às rotas do `bikeshop-gateway/src/main/resources/application.yml` (`lb://<nome no Eureka>`), senão o browser não lhe chega.
-- **Chamadas síncronas entre serviços** só por Feign com o nome no Eureka (ex.: `@FeignClient(name = "bikeshop-catalogo")` em `bikeshop-encomendas/clients`).
+- **Chamadas síncronas entre serviços** só por Feign com o nome no Eureka (`CatalogoClient` e `ClientesClient` em `bikeshop-encomendas/clients`), sempre pelo `EncomendasService.chamar`, que transforma qualquer falha em 503. As encomendas e a gateway veem instâncias novas ao fim de 5 s (`registry-fetch-interval-seconds` e `loadbalancer.cache.ttl`).
 - **Erros** saem do `ErroHandler` de cada serviço como JSON `{servico, estado, mensagem}`; lançar `NaoEncontradoException` para 404 e `IllegalArgumentException` para 400. JSON mal formado e identificadores inválidos dão 400. Um erro inesperado fica registado no log com o detalhe e o cliente recebe só uma mensagem genérica (500).
 - **Logging** (SLF4J com Logback): `logback-spring.xml` em cada serviço escreve na consola e em `logs/<serviço>.log`, com rotação diária e por tamanho. Nos containers a pasta é `/app/logs` (`docker exec bikeshop-stock ls logs`). Usar `@Slf4j` e mensagens parametrizadas (`log.info("... {}", valor)`).
 - **Banner:** cada serviço mostra no arranque o `banner.txt` com o seu nome e a porta.
@@ -306,17 +335,17 @@ O que é preciso saber antes de mexer:
 - **Testes** usam `src/test/resources/application.yml`: H2 com `create-drop`, Eureka desligado e listeners do RabbitMQ com `auto-startup: false`. Não precisam de Docker.
 - **Spring Boot 4:** os starters são modulares (`spring-boot-starter-webmvc`, e para os testes `-webmvc-test` e `-data-jpa-test`). `@WebMvcTest`, `@DataJpaTest` e `TestEntityManager` estão em `org.springframework.boot.webmvc.test.autoconfigure`, `...data.jpa.test.autoconfigure` e `...jpa.test.autoconfigure`. O JSON é o Jackson 3; no RabbitMQ o conversor é o `JacksonJsonMessageConverter`. O Jackson 2 só aparece dentro do cliente Eureka.
 - **Circuit breaker:** está em `EncomendasConfig` (`circuitBreakerCatalogo`) e liga-se com `spring.cloud.openfeign.circuitbreaker.enabled`. O 404 do catálogo não conta como falha. Com o circuit breaker, o erro do Feign chega dentro de `NoFallbackAvailableException`, e `EncomendasService.pecaDoCatalogo` tira-o de lá.
-- **Tracing:** `spring-boot-starter-opentelemetry` nos 5 serviços que tratam pedidos (o registo fica de fora). O endpoint é `http://${OTEL_HOST}:${OTEL_PORT}/v1/traces`. O `RabbitTemplate` de cada `MQConfig` tem `setObservationEnabled(true)` e os listeners têm `observation-enabled`, para a SAGA ficar num só trace. Nos testes, `management.tracing.export.enabled: false`.
+- **Tracing:** `spring-boot-starter-opentelemetry` nos 7 serviços que tratam pedidos (o registo fica de fora). Um `ObservationPredicate` em cada um deixa de fora as sondas do Actuator e os heartbeats do Eureka. O endpoint é `http://${OTEL_HOST}:${OTEL_PORT}/v1/traces`. O `RabbitTemplate` de cada `MQConfig` tem `setObservationEnabled(true)` e os listeners têm `observation-enabled`, para a SAGA ficar num só trace. Nos testes, `management.tracing.export.enabled: false`.
 - **Swagger:** cada serviço de negócio publica `/v3/api-docs` (bean `documentacao` na sua configuração, com o servidor "/") e cada controller tem `@Tag`. Um serviço novo precisa de uma rota `/api-docs/<serviço>` e de uma entrada em `springdoc.swagger-ui.urls` no `application.yml` da gateway.
-- **Dados de exemplo** vêm do `data.sql` (catálogo e stock); as referências das peças (ex.: `BAT-500`) têm de existir nos dois.
+- **Dados de exemplo** vêm do `data.sql` (catálogo, stock e clientes); as referências das peças (ex.: `BAT-500`) têm de existir no catálogo e no stock.
 
 ## 11. Conformidade com os slides MTSDS
 
-Revisão do projeto contra os slides oficiais da UC (01 a 06, em `docs/`, fora do Git). "Feito" quer dizer que já estava aplicado; "Acrescentado" foi aplicado nesta revisão.
+Revisão do projeto contra os slides oficiais da UC (01 a 06; a transcrição está em `C:\ESTG\MTSDS\PP-projeto-pratico\fontes`, fora deste repositório). "Feito" quer dizer que já estava aplicado; "Acrescentado" foi aplicado nesta revisão.
 
 | Slide | O que pede | Estado | Onde |
 |---|---|---|---|
-| 01 | Microsserviços autónomos, cada um uma aplicação Spring Boot | Feito | 6 módulos, cada um com o seu JAR e imagem |
+| 01 | Microsserviços autónomos, cada um uma aplicação Spring Boot | Feito | 8 módulos, cada um com o seu JAR e imagem |
 | 01 | Spring Cloud: service discovery, load balancer, API gateway | Feito | registo (Eureka), gateway, `lb://` e Feign |
 | 02 | Projeto Maven multi-módulo, versões no `dependencyManagement` do pai | Feito | `pom.xml` |
 | 02 | `application.yml` por módulo, com porta própria | Feito | `src/main/resources/application.yml` |
@@ -334,7 +363,7 @@ Revisão do projeto contra os slides oficiais da UC (01 a 06, em `docs/`, fora d
 | 03 | Camada de serviço com `@Service` e `@Transactional` | Feito | `service/` |
 | 03 | PostgreSQL em Docker Compose, com volume; H2 nos testes | Feito | `docker-compose.yml`, `src/test/resources` |
 | 03 | Não mandar o detalhe técnico do erro ao cliente; registar no log | Acrescentado | `ErroHandler` (500 genérico com `log.error`) |
-| 03 | Testes unitários para os vários endpoints | Acrescentado | 56 testes (secção 7) |
+| 03 | Testes unitários para os vários endpoints | Acrescentado | 78 testes (secção 7) |
 | 03/04 | Testar com o Postman, incluindo as exceções | Acrescentado | `postman/bikeshop.postman_collection.json` |
 | 04 | DTO em vez de entidades na API ("boa prática") | Feito; corrigido nas reservas | `dto/`, `ReservaDto` |
 | 04 | ModelMapper | Feito | `@Bean` em cada `configuration/` |
@@ -343,7 +372,7 @@ Revisão do projeto contra os slides oficiais da UC (01 a 06, em `docs/`, fora d
 | 04 | Exceções próprias e `@ControllerAdvice`, erro com o nome do serviço | Feito | `exception/` |
 | 04 | Spring Cloud Gateway com rotas e integração com o Eureka | Feito | `bikeshop-gateway/src/main/resources/application.yml` |
 | 04 | Eureka server que não se regista a si próprio; clientes em todos os serviços | Feito | `bikeshop-registo` |
-| 04 | OpenFeign com o nome do serviço (usa o load balancer) | Feito | `CatalogoClient` |
+| 04 | OpenFeign com o nome do serviço (usa o load balancer) | Feito | `CatalogoClient`, `ClientesClient` |
 | 04 | Testes que usam o OpenFeign (exercício) | Acrescentado | `CatalogoClientTest` |
 | 04 | Ferramenta de gestão da BD ao lado do PostgreSQL (Adminer/pgAdmin) | Acrescentado | `bikeshop-adminer` no `docker-compose.yml` |
 | 04 | Várias instâncias e ver o balanceamento no log | Acrescentado | catálogo com 2 réplicas em `k8s/`, log da instância |
@@ -374,16 +403,16 @@ Os exercícios do fim de cada slide são feitos sobre aplicações de demonstra�
 | 02 | Registar quem acedeu aos dados e quando | Só o quando (`@CreatedDate`/`@LastModifiedDate`); não há utilizadores com sessão |
 | 03 | PUT e DELETE | `PUT/DELETE /api/pecas/{referencia}`, `PUT /api/stock/{referencia}` |
 | 03 | Endpoint com query própria (JPQL ou nativa) | `GET /api/pecas?categoria=&precoMax=` |
-| 03 | Testes unitários para os vários endpoints | `@WebMvcTest` nos 4 controllers |
-| 04 | Uma BD por serviço em Docker, com ferramenta de gestão | 4 PostgreSQL e o Adminer |
+| 03 | Testes unitários para os vários endpoints | `@WebMvcTest` nos 6 controllers |
+| 04 | Uma BD por serviço em Docker, com ferramenta de gestão | 6 PostgreSQL e o Adminer |
 | 04 | Validar condições antes de mudar o estado | SAGA: reserva de stock, pagamento e compensação |
 | 04 | OpenFeign entre serviços, com testes | `CatalogoClient` e `CatalogoClientTest` |
 | 04 | Logging em ficheiro, sem detalhe técnico para o cliente; erros por email | Ficheiro e `ErroHandler`; o email fica de fora |
 | 04 | Segunda instância e balanceamento pelo Postman | Catálogo com 2 réplicas; o log diz a instância |
 | 04 | Imagem Docker de cada serviço e o projeto todo no Minikube | Dockerfiles e `k8s/` |
-| 05 | Persistência nos serviços e rastreabilidade entre eles | Reservas e pagamentos guardam o `encomendaId` |
+| 05 | Persistência nos serviços e rastreabilidade entre eles | Reservas, pagamentos e envios guardam o `encomendaId`; a encomenda guarda o `clienteId` e o código do envio |
 | 05 | Producer e consumer nos dois sentidos | Mensagens de ida e volta da SAGA (Tabela 2) |
-| 05 | Decisão automática e assíncrona | Stock e pagamentos reagem às mensagens |
+| 05 | Decisão automática e assíncrona | Stock, pagamentos e envios reagem às mensagens |
 | 06 | Novo endpoint, versão 2.0 no Docker Hub e no Minikube | `GET /api/pecas/marca/{marca}`, `k8s-atualizar.ps1` |
 | 06 | Serviço com duas réplicas; aumentar e acompanhar com kubectl | Catálogo com 2 réplicas, `kubectl scale` (secção 4) |
 
@@ -405,8 +434,6 @@ Resumo dos slides 01 a 06 (prof. Célio Carvalho). As marcas dizem até onde vai
 - **Obrigatório**: o slide manda fazer, numa demonstração ou num exercício.
 - **Boa prática**: o slide recomenda.
 - **Referido**: o slide só fala do assunto.
-
-A versão mais longa está em `docs/resumo-aulas-MTSDS.md` (fora do Git).
 
 **O que instalar:**
 - JDK 17 ou superior (os slides usam o 19);
@@ -436,7 +463,7 @@ Tabela 9: Aulas, ferramentas e o que é obrigatório.
 - Ingress, PersistentVolume e StatefulSet;
 - erros enviados por email.
 
-O BikeShop cumpre tudo o que é obrigatório (Tabelas 7 e 8). Do que é só referido, acrescentou o circuit breaker e o tracing (secção 14).
+O BikeShop 2.0 cumpre tudo o que é obrigatório (Tabelas 7 e 8). Do que é só referido, acrescentou o circuit breaker e o tracing (secção 14).
 
 ## 13. MTSDS vs GameShop vs BikeShop
 
@@ -444,23 +471,23 @@ O GameShop é o projeto prático de partida (`C:\ESTG\MTSDS\PP-projeto-pratico`)
 
 | Tema | MTSDS (slides) | GameShop | BikeShop |
 |---|---|---|---|
-| Serviços | 4 a 5 por demonstração | 8: 6 de negócio, Eureka e gateway, mais um módulo web-ui | 6: 4 de negócio, registo e gateway |
+| Serviços | 4 a 5 por demonstração | 8: 6 de negócio, Eureka e gateway, mais um módulo web-ui | 8: 6 de negócio (com clientes e envios), registo e gateway; 2 por equipa |
 | Java / Spring Boot / Spring Cloud | 19 / 3.1 / sem versão | 17 / 3.5.6 / 2025.0.0 (sem suporte OSS desde junho de 2026) | 17 / 4.1.2 / 2025.1.4 |
 | Configuração | `application.properties` | `application.yml` com perfil local | `application.yml` com variáveis de ambiente |
 | Lombok, SLF4J, `banner.txt` | Pedido | Sim; log com traceId, logstash-encoder e AOP | Sim; log em ficheiro rotativo por serviço |
-| Base de dados | H2, depois PostgreSQL | 6 PostgreSQL e Redis (cache) | 4 PostgreSQL; H2 nos testes |
+| Base de dados | H2, depois PostgreSQL | 6 PostgreSQL e Redis (cache) | 6 PostgreSQL; H2 nos testes |
 | Esquema e dados | `ddl-auto` | Liquibase | `ddl-auto` e `data.sql` |
 | Gestão da BD | pgAdmin, Adminer ou phpMyAdmin | Não tem | Adminer |
 | `@Query` e auditoria | JPQL; `@CreatedDate`/`@LastModifiedDate` | Por categoria e ano; JPA auditing e Envers | Por categoria até um preço; JPA auditing |
 | DTO e mapeamento | ModelMapper | MapStruct | ModelMapper |
 | Erros | `@ControllerAdvice` com o nome do serviço | Envelope `Result` com o campo `service` | `{servico, estado, mensagem}`; 500 genérico e 503 |
 | Gateway e Eureka | Pedido | Sim (`/gameshop/api`) | Sim (`/api`, rotas `lb://`); a gateway serve também a interface |
-| Entre serviços | RestTemplate, WebClient ou Feign | Feign com Resilience4j | Feign com Resilience4j |
-| RabbitMQ | `MQConfig`, TopicExchange, JSON | SAGA orquestrada com compensação | SAGA orquestrada com compensação, idempotência e publicação depois do commit |
+| Entre serviços | RestTemplate, WebClient ou Feign | Feign com Resilience4j | Feign com Resilience4j (catálogo e clientes) |
+| RabbitMQ | `MQConfig`, TopicExchange, JSON | SAGA orquestrada com compensação e envio | SAGA orquestrada até ao envio, com compensação, idempotência e publicação depois do commit |
 | Tracing e métricas | Só referido | Micrometer, OTLP e Jaeger; Prometheus | OpenTelemetry (OTLP) e Jaeger; sem Prometheus |
 | Swagger | Não aparece | springdoc em cada serviço | springdoc em cada serviço; Swagger UI única na gateway |
-| Testes | Todos os endpoints, MockMvc | 96 | 56, incluindo o Feign com 2 instâncias e o circuit breaker |
-| Postman | Pedido | 47 pedidos | 37 pedidos, com os erros |
+| Testes | Todos os endpoints, MockMvc | 96 | 78, incluindo o Feign com 2 instâncias e o circuit breaker |
+| Postman | Pedido | 47 pedidos | 53 pedidos, com os erros |
 | Docker | Dockerfile e Compose | JRE 17 Alpine, utilizador spring; Compose com healthchecks | Igual; Compose `bikeshop-infra` e `bikeshop-apps` |
 | Docker Hub | `tag` e `push` com versão | Não publica | `8220800/bikeshop-*` 1.0 e 2.0 |
 | Kubernetes | Deployment com 3 réplicas e Service | ConfigMap, Secret, probes; 2 réplicas num serviço; versão 1.1 | ConfigMap, Secret, probes; catálogo com 2 réplicas; versão 2.0 do Docker Hub com rolling update |
@@ -481,8 +508,8 @@ Pesquisa feita em outubro de 2026 sobre as ferramentas que o GameShop tem e os s
 | Ferramenta | Recomendação em 2026 | No BikeShop | Porquê |
 |---|---|---|---|
 | Spring Boot 4.1 e Spring Cloud 2025.1 | O 3.5 e o Spring Cloud 2025.0 deixaram de ter suporte open-source a 30 de junho de 2026; o 4.1 tem suporte até julho de 2027 | Feito: 4.1.2 e 2025.1.4 | Não ficar numa versão sem correções de segurança |
-| Resilience4j | Circuit breaker nos clientes HTTP entre serviços; o Hystrix está descontinuado | Feito: encomendas → catálogo | Com o catálogo em baixo, a encomenda esperava pelo timeout e dava 500; agora dá 503 e, com o circuito aberto, falha em milissegundos |
-| OpenTelemetry e Jaeger | A API Micrometer com exportação OTLP é o padrão; o Boot 4 tem o `spring-boot-starter-opentelemetry` | Feito: 5 serviços e o Jaeger no Compose | A SAGA passa por 5 serviços e pelo RabbitMQ; um trace mostra o caminho todo e onde se perde tempo |
+| Resilience4j | Circuit breaker nos clientes HTTP entre serviços; o Hystrix está descontinuado | Feito: encomendas → catálogo e clientes | Com o catálogo em baixo, a encomenda esperava pelo timeout e dava 500; agora dá 503 e, com o circuito aberto, falha em milissegundos |
+| OpenTelemetry e Jaeger | A API Micrometer com exportação OTLP é o padrão; o Boot 4 tem o `spring-boot-starter-opentelemetry` | Feito: 7 serviços e o Jaeger no Compose | A SAGA passa por 6 serviços e pelo RabbitMQ; um trace mostra o caminho todo e onde se perde tempo |
 | springdoc (OpenAPI e Swagger UI) | Documentação padrão das APIs Spring; a linha 3.x é a do Boot 4; agregada na gateway | Feito: Swagger UI na gateway | Barato e útil para testar sem o Postman |
 | OpenFeign | O projeto está feature-complete (só correções); a sucessora são as HTTP Service Clients do Spring Framework 7 | Mantido | É o que o slide 04 pede e continua suportado no Spring Cloud 2025.1 |
 | Flyway / Liquibase | Migrações versionadas em vez do `ddl-auto`; o Flyway é o padrão, o Liquibase quando é preciso rollback | Não (14.2) | O slide 03 ensina `ddl-auto` com `data.sql` |
@@ -499,7 +526,7 @@ Tabela 11: Ferramentas além dos slides.
   - parar o catálogo (`docker stop bikeshop-catalogo`) e criar uma encomenda: dá 503;
   - às 5 falhas, o circuito abre durante 10 s;
   - configuração em `EncomendasConfig`; teste em `CatalogoIndisponivelTest`.
-- **Tracing:** em http://localhost:16687, serviço `bikeshop-gateway`, **Find Traces**. A encomenda (`http post`) tem 12 spans e passa por 5 serviços.
+- **Tracing:** em http://localhost:16687, serviço `bikeshop-gateway`, **Find Traces**. A encomenda (`http post`) tem 15 spans e passa por 6 serviços.
 - **Swagger:** em http://localhost:9080/swagger-ui.html, escolher o serviço em "Select a definition". O "Try it out" faz o pedido pela gateway.
 
 ### 14.2 Para o futuro, se o docente aprovar

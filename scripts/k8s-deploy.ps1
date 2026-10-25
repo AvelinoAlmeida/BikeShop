@@ -17,7 +17,9 @@ $servicos = "bikeshop-registo", "bikeshop-gateway", "bikeshop-catalogo", "bikesh
 Write-Host "== 1/4 Infraestrutura (bikeshop-infra) e cluster ($perfil)" -ForegroundColor Cyan
 cmd /c "docker compose up -d --wait 2>&1" | Out-Null
 cmd /c "minikube -p $perfil status >NUL 2>&1"
-if ($LASTEXITCODE -ne 0) { cmd /c "minikube start -p $perfil --driver=docker --memory=4096 --cpus=4 2>&1" | Select-Object -Last 2 }
+# 9 pods Spring (8 servicos, 2 replicas do catalogo) nao cabem em 4 GB: o no fica sem memoria e a API deixa de responder.
+# A memoria so se escolhe ao criar o cluster; um perfil antigo, com 4 GB, apaga-se com: minikube delete -p bikeshop-minikube
+if ($LASTEXITCODE -ne 0) { cmd /c "minikube start -p $perfil --driver=docker --memory=6144 --cpus=6 2>&1" | Select-Object -Last 2 }
 kubectl config use-context $perfil | Out-Null
 
 if (-not $SemBuild) {

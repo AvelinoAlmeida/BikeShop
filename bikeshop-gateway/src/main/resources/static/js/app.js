@@ -184,7 +184,7 @@ function renderFooter() {
                 el('span', { class: 'footer-head' }, 'Grupo'),
                 GRUPO.map((g) => el('span', { class: `member-line c-${g.cor}` }, el('span', { class: 'swatch' }), `${g.nome} (${g.equipa}): ${g.servicos.join(', ')}`))),
         ),
-        el('p', { class: 'footer-note' }, 'Todos os pedidos da página passam pela bikeshop-gateway em ', el('code', {}, '/api'), '.'),
+        el('p', { class: 'footer-note' }, 'Todos os pedidos da página passam pela bikeshop-gateway, por ', el('code', {}, '/api'), '.'),
     ));
 }
 
