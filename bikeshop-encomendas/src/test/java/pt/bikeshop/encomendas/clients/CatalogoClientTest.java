@@ -7,6 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cloud.client.circuitbreaker.NoFallbackAvailableException;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import pt.bikeshop.encomendas.dto.EncomendaPedido;
@@ -77,9 +78,12 @@ class CatalogoClientTest {
         assertThat(PEDIDOS_B.get()).isEqualTo(2);
     }
 
+    /** Com o circuit breaker, o 404 do Feign chega dentro de NoFallbackAvailableException. */
     @Test
     void pecaInexistenteDa404NoFeign() {
-        assertThatThrownBy(() -> catalogo.peca("NAO-EXISTE")).isInstanceOf(FeignException.NotFound.class);
+        assertThatThrownBy(() -> catalogo.peca("NAO-EXISTE"))
+                .isInstanceOf(NoFallbackAvailableException.class)
+                .hasCauseInstanceOf(FeignException.NotFound.class);
     }
 
     @Test

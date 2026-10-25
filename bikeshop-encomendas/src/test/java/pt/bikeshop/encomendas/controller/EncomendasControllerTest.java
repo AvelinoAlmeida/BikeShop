@@ -8,6 +8,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import pt.bikeshop.encomendas.dto.EncomendaDto;
 import pt.bikeshop.encomendas.exception.NaoEncontradoException;
+import pt.bikeshop.encomendas.exception.ServicoIndisponivelException;
 import pt.bikeshop.encomendas.service.EncomendasService;
 
 import java.util.UUID;
@@ -84,5 +85,16 @@ class EncomendasControllerTest {
         mvc.perform(get("/api/encomendas/{id}", id))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.servico").value("bikeshop-encomendas"));
+    }
+
+    @Test
+    void catalogoEmBaixoDa503() throws Exception {
+        when(encomendas.criar(any())).thenThrow(
+                new ServicoIndisponivelException("O catálogo está indisponível; tente daqui a pouco.", null));
+
+        mvc.perform(post("/api/encomendas").contentType(MediaType.APPLICATION_JSON).content(PEDIDO))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.servico").value("bikeshop-encomendas"))
+                .andExpect(jsonPath("$.mensagem").value(startsWith("O catálogo está indisponível")));
     }
 }

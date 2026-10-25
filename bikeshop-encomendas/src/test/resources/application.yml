@@ -11,6 +11,16 @@ spring:
     listener:
       simple:
         auto-startup: false
+  # Como em produção: o Feign passa pelo circuit breaker (CatalogoIndisponivelTest)
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+      client:
+        config:
+          bikeshop-catalogo:
+            connect-timeout: 1000
+            read-timeout: 2000
 
 eureka:
   client:

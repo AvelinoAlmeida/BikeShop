@@ -21,6 +21,16 @@ spring:
     listener:
       simple:
         default-requeue-rejected: false
+  cloud:
+    openfeign:
+      # Cada chamada Feign passa pelo circuit breaker (configurado em EncomendasConfig)
+      circuitbreaker:
+        enabled: true
+      client:
+        config:
+          bikeshop-catalogo:
+            connect-timeout: 1000
+            read-timeout: 2000
 
 eureka:
   client:

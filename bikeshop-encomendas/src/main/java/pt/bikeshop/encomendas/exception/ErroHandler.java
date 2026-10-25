@@ -31,6 +31,12 @@ public class ErroHandler {
         return erro(HttpStatus.NOT_FOUND, e.getMessage());
     }
 
+    @ExceptionHandler(ServicoIndisponivelException.class)
+    public ResponseEntity<Map<String, Object>> indisponivel(ServicoIndisponivelException e) {
+        log.warn("{}: {}", e.getMessage(), e.getCause() == null ? "" : e.getCause().toString());
+        return erro(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
+    }
+
     @ExceptionHandler({MethodArgumentNotValidException.class, IllegalArgumentException.class})
     public ResponseEntity<Map<String, Object>> pedidoInvalido(Exception e) {
         String mensagem = e instanceof MethodArgumentNotValidException m && m.getFieldError() != null

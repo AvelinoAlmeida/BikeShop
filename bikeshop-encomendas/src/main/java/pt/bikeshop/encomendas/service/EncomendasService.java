@@ -4,6 +4,7 @@ import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
+import org.springframework.cloud.client.circuitbreaker.NoFallbackAvailableException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pt.bikeshop.encomendas.clients.CatalogoClient;
@@ -12,6 +13,7 @@ import pt.bikeshop.encomendas.dto.EncomendaDto;
 import pt.bikeshop.encomendas.dto.EncomendaPedido;
 import pt.bikeshop.encomendas.entity.Encomenda;
 import pt.bikeshop.encomendas.exception.NaoEncontradoException;
+import pt.bikeshop.encomendas.exception.ServicoIndisponivelException;
 import pt.bikeshop.encomendas.messages.Mensagens;
 import pt.bikeshop.encomendas.publishers.EncomendasPublisher;
 import pt.bikeshop.encomendas.repository.EncomendaRepository;
@@ -95,8 +97,13 @@ public class EncomendasService {
     private CatalogoClient.PecaCatalogo pecaDoCatalogo(String referencia) {
         try {
             return catalogo.peca(referencia);
-        } catch (FeignException.NotFound e) {
-            throw new IllegalArgumentException("A peça " + referencia + " não existe no catálogo");
+        } catch (RuntimeException e) {
+            // Com o circuit breaker, o erro do Feign chega embrulhado em NoFallbackAvailableException
+            Throwable causa = e instanceof NoFallbackAvailableException && e.getCause() != null ? e.getCause() : e;
+            if (causa instanceof FeignException.NotFound) {
+                throw new IllegalArgumentException("A peça " + referencia + " não existe no catálogo");
+            }
+            throw new ServicoIndisponivelException("O catálogo está indisponível; tente daqui a pouco.", causa);
         }
     }
 
