@@ -24,6 +24,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!-- Swagger UI em /swagger-ui.html, com a documentação dos 4 serviços de negócio -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+        </dependency>
         <!-- Tracing (boa prática 2026): Micrometer com exportação OTLP para o Jaeger -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -1,5 +1,6 @@
 package pt.bikeshop.pagamentos.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import pt.bikeshop.pagamentos.dto.PagamentoDto;
@@ -8,6 +9,7 @@ import pt.bikeshop.pagamentos.service.PagamentosService;
 import java.util.List;
 import java.util.UUID;
 
+@Tag(name = "Pagamentos")
 @RestController
 @RequestMapping("/api/pagamentos")
 @RequiredArgsConstructor

@@ -26,6 +26,31 @@ spring:
               uri: lb://bikeshop-encomendas
               predicates:
                 - Path=/api/encomendas/**
+            # Documentação OpenAPI de cada serviço, para a Swagger UI: /api-docs/catalogo -> /v3/api-docs
+            - id: docs-catalogo
+              uri: lb://bikeshop-catalogo
+              predicates:
+                - Path=/api-docs/catalogo
+              filters:
+                - SetPath=/v3/api-docs
+            - id: docs-stock
+              uri: lb://bikeshop-stock
+              predicates:
+                - Path=/api-docs/stock
+              filters:
+                - SetPath=/v3/api-docs
+            - id: docs-pagamentos
+              uri: lb://bikeshop-pagamentos
+              predicates:
+                - Path=/api-docs/pagamentos
+              filters:
+                - SetPath=/v3/api-docs
+            - id: docs-encomendas
+              uri: lb://bikeshop-encomendas
+              predicates:
+                - Path=/api-docs/encomendas
+              filters:
+                - SetPath=/v3/api-docs
             # Só leitura, para a página Bastidores: o registo do Eureka...
             - id: registo
               uri: http://${EUREKA_HOST:localhost}:9761
@@ -44,6 +69,20 @@ spring:
               filters:
                 - SetPath=/api/queues
                 - SetRequestHeader=Authorization, Basic ${RABBITMQ_BASIC:YmlrZXNob3A6YmlrZXNob3A=}
+
+# Swagger UI (http://localhost:9080/swagger-ui.html): um separador por serviço de negócio
+springdoc:
+  swagger-ui:
+    urls-primary-name: catalogo
+    urls:
+      - name: catalogo
+        url: /api-docs/catalogo
+      - name: stock
+        url: /api-docs/stock
+      - name: pagamentos
+        url: /api-docs/pagamentos
+      - name: encomendas
+        url: /api-docs/encomendas
 
 eureka:
   client:

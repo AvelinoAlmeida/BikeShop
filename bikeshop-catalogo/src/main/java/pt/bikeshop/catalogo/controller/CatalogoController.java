@@ -1,6 +1,7 @@
 package pt.bikeshop.catalogo.controller;
 
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -16,6 +17,7 @@ import java.net.UnknownHostException;
 import java.util.List;
 
 @Slf4j
+@Tag(name = "Peças e categorias")
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor

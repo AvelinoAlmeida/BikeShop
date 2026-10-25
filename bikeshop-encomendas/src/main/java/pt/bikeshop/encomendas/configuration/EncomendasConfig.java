@@ -3,6 +3,9 @@ package pt.bikeshop.encomendas.configuration;
 import feign.FeignException;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.servers.Server;
 import org.modelmapper.ModelMapper;
 import org.springframework.cloud.circuitbreaker.resilience4j.Resilience4JCircuitBreakerFactory;
 import org.springframework.cloud.circuitbreaker.resilience4j.Resilience4JConfigBuilder;
@@ -12,6 +15,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 import java.time.Duration;
+import java.util.List;
 
 @Configuration
 @EnableJpaAuditing
@@ -39,5 +43,13 @@ public class EncomendasConfig {
                         .build())
                 .timeLimiterConfig(TimeLimiterConfig.custom().timeoutDuration(Duration.ofSeconds(3)).build())
                 .build());
+    }
+
+    /** Documentação OpenAPI. O servidor é "/": a Swagger UI da gateway faz os pedidos pela própria gateway. */
+    @Bean
+    public OpenAPI documentacao() {
+        return new OpenAPI()
+                .info(new Info().title("bikeshop-encomendas").description("Encomendas e SAGA entre o stock e os pagamentos").version("2.0"))
+                .servers(List.of(new Server().url("/").description("Pela gateway")));
     }
 }

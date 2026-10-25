@@ -1,6 +1,7 @@
 package pt.bikeshop.encomendas.controller;
 
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -11,6 +12,7 @@ import pt.bikeshop.encomendas.service.EncomendasService;
 import java.util.List;
 import java.util.UUID;
 
+@Tag(name = "Encomendas")
 @RestController
 @RequestMapping("/api/encomendas")
 @RequiredArgsConstructor
