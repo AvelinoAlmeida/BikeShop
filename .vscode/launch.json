@@ -1,0 +1,67 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "bikeshop-registo",
+            "request": "launch",
+            "mainClass": "pt.bikeshop.registo.RegistoApplication",
+            "projectName": "bikeshop-registo",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "java",
+            "name": "bikeshop-gateway",
+            "request": "launch",
+            "mainClass": "pt.bikeshop.gateway.GatewayApplication",
+            "projectName": "bikeshop-gateway",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "java",
+            "name": "bikeshop-catalogo",
+            "request": "launch",
+            "mainClass": "pt.bikeshop.catalogo.CatalogoApplication",
+            "projectName": "bikeshop-catalogo",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "java",
+            "name": "bikeshop-stock",
+            "request": "launch",
+            "mainClass": "pt.bikeshop.stock.StockApplication",
+            "projectName": "bikeshop-stock",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "java",
+            "name": "bikeshop-pagamentos",
+            "request": "launch",
+            "mainClass": "pt.bikeshop.pagamentos.PagamentosApplication",
+            "projectName": "bikeshop-pagamentos",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "java",
+            "name": "bikeshop-encomendas",
+            "request": "launch",
+            "mainClass": "pt.bikeshop.encomendas.EncomendasApplication",
+            "projectName": "bikeshop-encomendas",
+            "cwd": "${workspaceFolder}"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "BikeShop (todos)",
+            "configurations": [
+                "bikeshop-registo",
+                "bikeshop-gateway",
+                "bikeshop-catalogo",
+                "bikeshop-stock",
+                "bikeshop-pagamentos",
+                "bikeshop-encomendas"
+            ],
+            "stopAll": true
+        }
+    ]
+}

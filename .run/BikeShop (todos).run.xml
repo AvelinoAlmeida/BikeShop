@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="BikeShop (todos)" type="CompoundRunConfigurationType">
+    <toRun name="bikeshop-registo" type="Application" />
+    <toRun name="bikeshop-gateway" type="Application" />
+    <toRun name="bikeshop-catalogo" type="Application" />
+    <toRun name="bikeshop-stock" type="Application" />
+    <toRun name="bikeshop-pagamentos" type="Application" />
+    <toRun name="bikeshop-encomendas" type="Application" />
+    <method v="2" />
+  </configuration>
+</component>

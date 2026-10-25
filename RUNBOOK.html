@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Runbook · BikeShop</title>
+<meta name="description" content="Como arrancar o BikeShop: no terminal do Docker Desktop, pelo VS Code, pelo IntelliJ IDEA ou no Minikube.">
+<style>
+:root{--bg:#f4f5fa;--s:#fff;--s2:#eef0f6;--t:#1d2330;--m:#5a6178;--b:#dde1ea;--a:#ff6600;--ai:#b84a00;--ok:#138a4e;--okb:#e3f6ec;--warn:#a15c00;--warnb:#fff2dc;--dk:#ff6600;--vs:#19b6a8;--ij:#e5487f;--k8:#f5a524;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1020;--s:#181b2e;--s2:#20243a;--t:#eef0f7;--m:#a9afc6;--b:#2e3350;--ai:#ff8a3d;--ok:#34d399;--okb:#10302a;--warn:#f5b54a;--warnb:#33270f;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t);font:15px/1.55 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
+a{color:var(--ai)}
+code,pre,kbd{font-family:ui-monospace,"Cascadia Code",Consolas,monospace}
+code{font-size:.9em}
+kbd{padding:1px 6px;border:1px solid var(--b);border-bottom-width:2px;border-radius:6px;background:var(--s2);font-size:.85em}
+.wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+header.top{background:var(--s);border-bottom:1px solid var(--b)}
+.top .wrap{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;min-height:60px;padding-top:8px;padding-bottom:8px}
+.brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:1.1rem}
+.brand svg{width:36px;height:36px}.wm span{color:var(--ai)}
+.top .doc{margin-left:auto;font-size:.9rem;color:var(--m)}
+.hero{margin:28px 0 8px;padding:26px;border-radius:16px;background:var(--s);border:1px solid var(--b);border-top:5px solid var(--a)}
+.eyebrow{margin:0;color:var(--ai);font-weight:700;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase}
+h1{margin:6px 0 0;font-size:clamp(1.6rem,1.2rem + 1.8vw,2.4rem);line-height:1.15}
+.lead{margin:8px 0 0;color:var(--m);font-size:1.05rem}
+/* Seletor da forma de arrancar */
+.modos{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:20px 0 0}
+.modo{--c:var(--a);display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:14px 14px 12px;border-radius:14px;border:2px solid var(--b);background:var(--s2);color:var(--t);font:inherit;text-align:left;cursor:pointer;transition:border-color .15s,background .15s,transform .15s}
+.modo:hover{border-color:var(--c);transform:translateY(-1px)}
+.modo:focus-visible{outline:3px solid var(--c);outline-offset:2px}
+.modo[aria-selected="true"]{border-color:var(--c);background:var(--s);box-shadow:inset 0 4px 0 var(--c)}
+.modo svg{width:26px;height:26px;margin-bottom:6px;color:var(--c);fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.modo b{font-size:1rem}.modo span{color:var(--m);font-size:.82rem;line-height:1.35}
+.modo .tag{margin-top:6px;padding:1px 8px;border-radius:999px;background:var(--okb);color:var(--ok);font-size:.72rem;font-weight:700}
+.dk{--c:var(--dk)}.vs{--c:var(--vs)}.ij{--c:var(--ij)}.k8{--c:var(--k8)}
+.painel[hidden]{display:block}.js .painel[hidden]{display:none}
+.painel{margin-top:8px}
+h2{margin:36px 0 12px;font-size:1.3rem;display:flex;align-items:center;gap:10px}
+h2:before{content:"";flex:none;width:6px;height:22px;border-radius:3px;background:var(--c,var(--a))}
+.sub{margin:-6px 0 12px;color:var(--m)}
+.porque{margin:0 0 12px;padding:12px 14px;border-radius:12px;background:var(--s);border:1px solid var(--b);border-left:4px solid var(--c);font-size:.92rem}
+ol.steps{list-style:none;margin:0;padding:0;display:grid;gap:10px;counter-reset:n}
+ol.steps>li{counter-increment:n;display:grid;grid-template-columns:40px minmax(0,1fr);gap:4px 12px;padding:14px;border-radius:12px;background:var(--s);border:1px solid var(--b)}
+ol.steps>li>*{grid-column:2}
+ol.steps>li:before{content:counter(n);grid-column:1;grid-row:1 / span 9;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--c,var(--a));color:#fff;font-weight:800}
+ol.steps h3{margin:0;font-size:1rem}ol.steps p{margin:0;color:var(--m);font-size:.9rem}
+.cmd{position:relative;margin:6px 0 0}
+.cmd pre{margin:0;padding:11px 84px 11px 14px;border-radius:10px;background:var(--s2);border:1px solid var(--b);overflow-x:auto;font-size:.84rem;white-space:pre}
+.copy{position:absolute;top:6px;right:6px;padding:4px 10px;border:1px solid var(--b);border-radius:8px;background:var(--s);color:var(--t);font:inherit;font-size:.78rem;cursor:pointer}
+.copy:hover{border-color:var(--a)}
+.ok{display:block;width:fit-content;max-width:100%;margin-top:6px;padding:4px 10px;border-radius:8px;background:var(--okb);color:var(--ok);font-size:.85rem;font-weight:600}
+.note{margin-top:8px;padding:10px 12px;border-radius:10px;background:var(--warnb);color:var(--warn);font-size:.88rem}
+table{width:100%;border-collapse:collapse;background:var(--s);font-size:.88rem}
+th,td{padding:9px 12px;border-bottom:1px solid var(--b);text-align:left;vertical-align:top}
+th{background:var(--s2);color:var(--m);font-size:.74rem;letter-spacing:.04em;text-transform:uppercase}
+tr:last-child td{border-bottom:0}.tw{overflow-x:auto;border-radius:12px;border:1px solid var(--b)}
+footer{margin:40px 0;color:var(--m);font-size:.85rem}
+@media (max-width:860px){.modos{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:760px){ol.steps>li{grid-template-columns:minmax(0,1fr)}ol.steps>li>*{grid-column:1}ol.steps>li:before{grid-row:auto}.hero{padding:20px}}
+@media (max-width:420px){.modo span:not(.tag){display:none}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <div class="brand"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="27" fill="none" stroke="#FF6600" stroke-width="6"/><circle cx="32" cy="32" r="19" fill="none" stroke="currentColor" stroke-opacity=".35" stroke-width="2" stroke-dasharray="3 4"/><path d="M36 9 L20 35 H30 L27 55 L44 27 H34 Z" fill="#FFFFFF" stroke="#111111" stroke-width="2" stroke-linejoin="round"/></svg><span class="wm">Bike<span>Shop</span></span></div>
+  <span class="doc">Tudo sobre o projeto: <code>README.md</code></span>
+</div></header>
+
+<main class="wrap">
+<section class="hero">
+  <p class="eyebrow">Runbook</p>
+  <h1>Arrancar o BikeShop</h1>
+  <p class="lead">Escolha onde quer correr a loja. Os passos mudam conforme a escolha.</p>
+  <div class="modos" role="tablist" aria-label="Forma de arrancar">
+    <button class="modo dk" role="tab" id="t-docker" aria-controls="docker" aria-selected="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="4" height="4"/><rect x="8" y="11" width="4" height="4"/><rect x="13" y="11" width="4" height="4"/><rect x="8" y="6" width="4" height="4"/><path d="M2 15.5c0 3 2.5 5 7 5 6 0 9.5-3 11-7.5 1 0 2-.5 2.5-1.5-1-.7-2-.6-2.5-.4"/></svg>
+      <b>Docker</b><span>No terminal do Docker Desktop. Tudo em containers.</span><span class="tag">o mais simples</span>
+    </button>
+    <button class="modo vs" role="tab" id="t-vscode" aria-controls="vscode" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3l4 2v14l-4 2L7 12l10-9z"/><path d="M17 3v18M7 12L3 9v6l4-3"/></svg>
+      <b>VS Code</b><span>Os 6 serviços no editor, com debug.</span>
+    </button>
+    <button class="modo ij" role="tab" id="t-intellij" aria-controls="intellij" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 17h6M8 7h3M9.5 7v6M8 13h3M14 7v6h3"/></svg>
+      <b>IntelliJ IDEA</b><span>Os 6 serviços no IDE, com debug.</span>
+    </button>
+    <button class="modo k8" role="tab" id="t-k8s" aria-controls="k8s" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l8.5 4.5v9L12 22l-8.5-6.5v-9L12 2z"/><circle cx="12" cy="12" r="3"/><path d="M12 5v4M12 15v4M5.5 8.5L9.4 10.5M14.6 13.5l3.9 2M18.5 8.5l-3.9 2M9.4 13.5l-3.9 2"/></svg>
+      <b>Kubernetes</b><span>No Minikube, como pede o slide 06.</span>
+    </button>
+  </div>
+</section>
+
+<!-- Docker -->
+<section class="painel dk" id="docker" role="tabpanel" aria-labelledby="t-docker">
+  <h2>Docker</h2>
+  <p class="sub">A infraestrutura e os 6 serviços correm em containers. Só é preciso o Docker Desktop e o Java 17 (para compilar).</p>
+  <ol class="steps">
+    <li>
+      <h3>Abrir o Docker Desktop</h3>
+      <p>Esperar até aparecer <b>Engine running</b> no canto inferior esquerdo.</p>
+    </li>
+    <li>
+      <h3>Abrir o terminal do Docker</h3>
+      <p>No Docker Desktop, carregar em <b>&gt;_ Terminal</b>, no canto inferior direito. Abre um terminal já ligado ao Docker.</p>
+    </li>
+    <li>
+      <h3>Ir para a pasta do projeto</h3>
+      <div class="cmd"><pre>cd C:\ESTG\BikeShop</pre></div>
+    </li>
+    <li>
+      <h3>Arrancar</h3>
+      <p>Liga a infraestrutura, compila os JAR se faltarem, constrói as imagens e espera que os serviços respondam (1 a 3 minutos).</p>
+      <div class="cmd"><pre>powershell -ExecutionPolicy Bypass -File scripts\arrancar.ps1</pre></div>
+      <span class="ok">BikeShop pronto: http://localhost:9080/</span>
+      <div class="note">Depois de mudar o código, acrescente <code>-Compilar</code> no fim, para recompilar e reconstruir as imagens.</div>
+    </li>
+    <li>
+      <h3>Abrir a interface</h3>
+      <p>A loja, a arquitetura com o estado de cada serviço e o menu <b>Ferramentas</b> (Eureka, RabbitMQ, Adminer). Os containers aparecem no Docker Desktop, em <b>Containers</b>, nos grupos <code>bikeshop-infra</code> e <code>bikeshop-apps</code>.</p>
+      <div class="cmd"><pre>start http://localhost:9080/</pre></div>
+    </li>
+    <li>
+      <h3>Testar a SAGA do princípio ao fim</h3>
+      <p>Encomenda paga, pagamento recusado com compensação e encomenda sem stock.</p>
+      <div class="cmd"><pre>powershell -ExecutionPolicy Bypass -File scripts\e2e-test.ps1</pre></div>
+      <span class="ok">Todas as verificacoes OK</span>
+    </li>
+    <li>
+      <h3>Parar</h3>
+      <p>Para os serviços e a infraestrutura. Os dados ficam guardados; com <code>-ApagarDados</code> no fim voltam os dados de exemplo.</p>
+      <div class="cmd"><pre>powershell -ExecutionPolicy Bypass -File scripts\parar.ps1</pre></div>
+    </li>
+  </ol>
+</section>
+
+<!-- VS Code -->
+<section class="painel vs" id="vscode" role="tabpanel" aria-labelledby="t-vscode" hidden>
+  <h2>VS Code</h2>
+  <p class="sub">Para programar: a infraestrutura fica em Docker e os 6 serviços correm no VS Code, com breakpoints.</p>
+  <ol class="steps">
+    <li>
+      <h3>Abrir o Docker Desktop</h3>
+      <p>Esperar por <b>Engine running</b>. As bases de dados e o RabbitMQ correm lá.</p>
+    </li>
+    <li>
+      <h3>Instalar a extensão Java</h3>
+      <p>Em <b>Extensions</b> (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd>), instalar o <b>Extension Pack for Java</b> (Microsoft). Só na primeira vez.</p>
+    </li>
+    <li>
+      <h3>Abrir a pasta do projeto</h3>
+      <p><b>File › Open Folder</b> e escolher <code>C:\ESTG\BikeShop</code>.</p>
+    </li>
+    <li>
+      <h3>Arrancar a infraestrutura</h3>
+      <p>No terminal do VS Code (<kbd>Ctrl</kbd>+<kbd>`</kbd>): 4 PostgreSQL, RabbitMQ e Adminer.</p>
+      <div class="cmd"><pre>docker compose up -d --wait</pre></div>
+      <span class="ok">Container bikeshop-rabbitmq Healthy</span>
+      <div class="note">Se os serviços estiverem a correr em Docker, pare-os primeiro, porque usam as mesmas portas: <code>docker compose -f docker-compose.apps.yml down</code></div>
+    </li>
+    <li>
+      <h3>Esperar por "Java: Ready"</h3>
+      <p>Na barra de baixo. Na primeira vez demora, porque importa os 6 módulos Maven.</p>
+    </li>
+    <li>
+      <h3>Correr "BikeShop (todos)"</h3>
+      <p>Abrir <b>Run and Debug</b> (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd>), escolher <b>BikeShop (todos)</b> na lista de cima e carregar em ▶. Arranca o registo e os outros 5; cada um fica com a sua consola.</p>
+      <div class="note">Para correr só um, escolha-o na mesma lista (<code>bikeshop-catalogo</code>, …). O <code>bikeshop-registo</code> tem de estar sempre a correr.</div>
+    </li>
+    <li>
+      <h3>Confirmar</h3>
+      <p>Esperar uns 30 segundos, para os serviços se registarem no Eureka, e no terminal:</p>
+      <div class="cmd"><pre>.\scripts\e2e-test.ps1</pre></div>
+      <span class="ok">Todas as verificacoes OK</span>
+    </li>
+    <li>
+      <h3>Parar</h3>
+      <p>Botão ■ na barra de debug (<kbd>Shift</kbd>+<kbd>F5</kbd>) para os serviços; depois a infraestrutura:</p>
+      <div class="cmd"><pre>docker compose down</pre></div>
+    </li>
+  </ol>
+</section>
+
+<!-- IntelliJ -->
+<section class="painel ij" id="intellij" role="tabpanel" aria-labelledby="t-intellij" hidden>
+  <h2>IntelliJ IDEA</h2>
+  <p class="sub">Para programar: a infraestrutura fica em Docker e os 6 serviços correm no IntelliJ, com breakpoints.</p>
+  <ol class="steps">
+    <li>
+      <h3>Abrir o Docker Desktop</h3>
+      <p>Esperar por <b>Engine running</b>. As bases de dados e o RabbitMQ correm lá.</p>
+    </li>
+    <li>
+      <h3>Abrir o projeto</h3>
+      <p><b>File › Open</b>, escolher o <code>pom.xml</code> da raiz (<code>C:\ESTG\BikeShop\pom.xml</code>) e <b>Open as Project</b>.</p>
+    </li>
+    <li>
+      <h3>Esperar pelo Maven</h3>
+      <p>Até a barra de baixo deixar de indexar e aparecerem os 6 módulos <code>bikeshop-*</code>.</p>
+    </li>
+    <li>
+      <h3>Arrancar a infraestrutura</h3>
+      <p>No terminal do IntelliJ (<kbd>Alt</kbd>+<kbd>F12</kbd>): 4 PostgreSQL, RabbitMQ e Adminer.</p>
+      <div class="cmd"><pre>docker compose up -d --wait</pre></div>
+      <span class="ok">Container bikeshop-rabbitmq Healthy</span>
+      <div class="note">Se os serviços estiverem a correr em Docker, pare-os primeiro, porque usam as mesmas portas: <code>docker compose -f docker-compose.apps.yml down</code></div>
+    </li>
+    <li>
+      <h3>Correr "BikeShop (todos)"</h3>
+      <p>Na lista de configurações (em cima, à direita), escolher <b>BikeShop (todos)</b> e carregar em ▶. Arranca o registo e os outros 5, cada um no seu separador da janela <b>Run</b>.</p>
+      <div class="note">Para correr só um, as configurações estão na pasta <b>BikeShop</b> da mesma lista. O <code>bikeshop-registo</code> tem de estar sempre a correr.</div>
+    </li>
+    <li>
+      <h3>Confirmar</h3>
+      <p>Esperar uns 30 segundos, para os serviços se registarem no Eureka, e no terminal:</p>
+      <div class="cmd"><pre>.\scripts\e2e-test.ps1</pre></div>
+      <span class="ok">Todas as verificacoes OK</span>
+    </li>
+    <li>
+      <h3>Parar</h3>
+      <p>Botão ■ na janela Run (<kbd>Ctrl</kbd>+<kbd>F2</kbd>) para os serviços; depois a infraestrutura:</p>
+      <div class="cmd"><pre>docker compose down</pre></div>
+    </li>
+  </ol>
+</section>
+
+<!-- Kubernetes -->
+<section class="painel k8" id="k8s" role="tabpanel" aria-labelledby="t-k8s" hidden>
+  <h2>Kubernetes (Minikube)</h2>
+  <p class="porque"><b>Porquê?</b> O slide 06 pede o projeto todo no Kubernetes, com réplicas, ConfigMap e Secret, e uma nova versão posta em produção. É opcional: para usar a loja ou programar, basta Docker, VS Code ou IntelliJ. Aqui os 6 serviços correm no cluster (perfil <code>bikeshop-minikube</code>, namespace <code>bikeshop</code>), o catálogo com 2 réplicas; a infraestrutura continua no Docker.</p>
+  <ol class="steps">
+    <li>
+      <h3>Abrir o Docker Desktop e o terminal</h3>
+      <p>Esperar por <b>Engine running</b>, abrir <b>&gt;_ Terminal</b> e ir para a pasta do projeto. Precisa também do Minikube e do kubectl instalados.</p>
+      <div class="cmd"><pre>cd C:\ESTG\BikeShop</pre></div>
+    </li>
+    <li>
+      <h3>Pôr no cluster</h3>
+      <p>Arranca o Minikube se preciso, compila, constrói as imagens, carrega-as no cluster e aplica <code>k8s/</code>. Na primeira vez demora alguns minutos.</p>
+      <div class="cmd"><pre>powershell -ExecutionPolicy Bypass -File scripts\k8s-deploy.ps1</pre></div>
+      <span class="ok">deployment "bikeshop-encomendas" successfully rolled out</span>
+    </li>
+    <li>
+      <h3>Abrir a gateway do cluster</h3>
+      <p>Deixar este comando a correr; a interface fica em http://localhost:19080/.</p>
+      <div class="cmd"><pre>kubectl port-forward -n bikeshop svc/bikeshop-gateway 19080:80</pre></div>
+    </li>
+    <li>
+      <h3>Testar e ver os pods</h3>
+      <p>Noutro terminal, também na pasta do projeto:</p>
+      <div class="cmd"><pre>powershell -ExecutionPolicy Bypass -File scripts\e2e-test.ps1 -Gateway http://localhost:19080
+kubectl get pods -n bikeshop</pre></div>
+    </li>
+    <li>
+      <h3>Nova versão a partir do Docker Hub</h3>
+      <p>Muda um serviço para uma imagem publicada e acompanha a troca dos pods, um de cada vez.</p>
+      <div class="cmd"><pre>powershell -ExecutionPolicy Bypass -File scripts\k8s-atualizar.ps1 -Utilizador 8220800 -Servico catalogo -Versao 2.0</pre></div>
+    </li>
+    <li>
+      <h3>Parar o cluster</h3>
+      <p>Os pods voltam no próximo <code>minikube start</code>.</p>
+      <div class="cmd"><pre>minikube -p bikeshop-minikube stop</pre></div>
+    </li>
+  </ol>
+</section>
+
+<h2 id="confirmar">Confirmar</h2>
+<p class="sub">Com a loja a correr (na forma Kubernetes, a interface está na porta 19080).</p>
+<div class="tw"><table>
+  <thead><tr><th>O quê</th><th>Endereço</th><th>Entrar</th></tr></thead>
+  <tbody>
+    <tr><td>Interface</td><td><a href="http://localhost:9080/">localhost:9080</a></td><td>-</td></tr>
+    <tr><td>Eureka (serviços registados)</td><td><a href="http://localhost:9761/">localhost:9761</a></td><td>sem login; devem aparecer 5 serviços</td></tr>
+    <tr><td>RabbitMQ (filas da SAGA)</td><td><a href="http://localhost:15673/">localhost:15673</a></td><td><code>bikeshop</code> / <code>bikeshop</code></td></tr>
+    <tr><td>Adminer (bases de dados)</td><td><a href="http://localhost:18081/">localhost:18081</a></td><td>Sistema <b>PostgreSQL</b>, servidor <code>bikeshop-postgres-&lt;serviço&gt;</code>, <code>bikeshop</code> / <code>bikeshop</code>, base de dados <code>bikeshop_&lt;serviço&gt;</code></td></tr>
+    <tr><td>Cada serviço responde</td><td><a href="http://localhost:9080/api/pecas/landing">/api/pecas/landing</a>, <a href="http://localhost:9080/api/stock/landing">/api/stock/landing</a>, <a href="http://localhost:9080/api/pagamentos/landing">/api/pagamentos/landing</a>, <a href="http://localhost:9080/api/encomendas/landing">/api/encomendas/landing</a></td><td>-</td></tr>
+    <tr><td>Postman</td><td><code>postman/bikeshop.postman_collection.json</code></td><td>importar e correr por ordem (Runner)</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="problemas">Se correr mal</h2>
+<div class="tw"><table>
+  <thead><tr><th>Sintoma</th><th>Causa</th><th>Solução</th></tr></thead>
+  <tbody>
+    <tr><td>"O Docker nao responde" ou <code>failed to connect to the docker API</code></td><td>Docker Desktop fechado</td><td>Abri-lo e esperar por "Engine running"</td></tr>
+    <tr><td>Não aparece o botão Terminal no Docker Desktop</td><td>Versão antiga do Docker Desktop</td><td>Atualizá-lo, ou usar um PowerShell normal na mesma pasta</td></tr>
+    <tr><td>503, 500 ou pontos vermelhos no primeiro minuto</td><td>Os serviços ainda se estão a registar no Eureka e a descobrir-se uns aos outros</td><td>Esperar 30 segundos e repetir</td></tr>
+    <tr><td><code>Port 9080 was already in use</code> (ou outra porta 908x/9761)</td><td>O serviço já corre noutro sítio (Docker, VS Code, IntelliJ ou terminal)</td><td><code>docker compose -f docker-compose.apps.yml down</code> ou parar no IDE, e arrancar de novo</td></tr>
+    <tr><td>A interface não mostra uma alteração ao código</td><td>As imagens Docker têm o JAR antigo</td><td>Arrancar com <code>-Compilar</code></td></tr>
+    <tr><td>Adminer: "Unable to connect" ou pede MySQL</td><td>Sistema MySQL (o que vem por omissão) ou servidor <code>localhost</code></td><td>Escolher PostgreSQL e o servidor <code>bikeshop-postgres-&lt;serviço&gt;</code></td></tr>
+    <tr><td>VS Code: "BikeShop (todos)" não aparece ou a classe não é encontrada</td><td>Pasta errada, ou o Java ainda não está pronto</td><td>Abrir <code>C:\ESTG\BikeShop</code> e esperar por "Java: Ready"; se persistir, <b>Java: Clean Java Language Server Workspace</b></td></tr>
+    <tr><td>IntelliJ: "BikeShop (todos)" não aparece</td><td>Projeto aberto noutra pasta, ou um módulo em vez da raiz</td><td>Abrir o <code>pom.xml</code> da raiz como projeto (a pasta <code>.run</code> está aí)</td></tr>
+    <tr><td>Pod em <code>ErrImageNeverPull</code></td><td>A imagem não foi carregada no Minikube</td><td>Correr o <code>k8s-deploy.ps1</code> sem <code>-SemBuild</code></td></tr>
+    <tr><td>Pod em <code>CrashLoopBackOff</code></td><td>Infraestrutura parada ou JAR partido</td><td><code>docker compose up -d --wait</code>; depois <code>kubectl logs -n bikeshop &lt;pod&gt;</code></td></tr>
+  </tbody>
+</table></div>
+
+<footer>Arquitetura, SAGA, API, testes e decisões: <code>README.md</code>. Configurações do IDE: <code>.vscode/launch.json</code> (VS Code) e <code>.run/</code> (IntelliJ).</footer>
+</main>
+
+<script>
+// Botão Copiar em cada comando
+document.querySelectorAll('.cmd').forEach(function (box) {
+  var b = document.createElement('button'); b.className = 'copy'; b.type = 'button'; b.textContent = 'Copiar';
+  b.onclick = function () {
+    var t = box.querySelector('pre').innerText;
+    (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { b.textContent = 'Copiado'; },
+      function () { b.textContent = 'Selecione e copie'; });
+    setTimeout(function () { b.textContent = 'Copiar'; }, 1500);
+  };
+  box.appendChild(b);
+});
+
+// Seletor: mostra só a forma escolhida; fica no endereço (#vscode) e é lembrado neste browser.
+// Sem JavaScript, as quatro formas aparecem umas a seguir às outras.
+(function () {
+  document.documentElement.classList.add('js');
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.modo'));
+  var ids = tabs.map(function (t) { return t.getAttribute('aria-controls'); });
+  function mostrar(id, foco) {
+    if (ids.indexOf(id) < 0) id = ids[0];
+    tabs.forEach(function (t) {
+      var on = t.getAttribute('aria-controls') === id;
+      t.setAttribute('aria-selected', on); t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+      if (on && foco) t.focus();
+    });
+    try { localStorage.setItem('bikeshop.runbook', id); } catch (e) { }
+    if (location.hash !== '#' + id) history.replaceState(null, '', '#' + id);
+  }
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { mostrar(t.getAttribute('aria-controls')); });
+    t.addEventListener('keydown', function (e) {
+      var d = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+      if (!d) return;
+      e.preventDefault();
+      mostrar(ids[(i + d + ids.length) % ids.length], true);
+    });
+  });
+  var guardado = null;
+  try { guardado = localStorage.getItem('bikeshop.runbook'); } catch (e) { }
+  mostrar(location.hash.slice(1) || guardado || ids[0]);
+  window.addEventListener('hashchange', function () { mostrar(location.hash.slice(1)); });
+})();
+</script>
+</body>
+</html>

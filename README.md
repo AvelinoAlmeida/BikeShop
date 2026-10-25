@@ -110,6 +110,8 @@ O que os slides pedem, o que está feito e o que fica de fora (e porquê) está 
 
 ## 4. Como correr
 
+O passo a passo, com os resultados esperados e o que fazer se correr mal, está no `RUNBOOK.html` (abrir no browser).
+
 **Requisitos:** Docker Desktop. Para compilar, também o JDK 17 (o Maven vem no projeto, `mvnw`).
 
 **Tudo em Docker (o mais simples):**
@@ -130,7 +132,7 @@ docker compose up -d --wait                                # PostgreSQL x4, Rabb
 docker compose -f docker-compose.apps.yml up -d --build    # os 6 serviços (grupo bikeshop-apps)
 ```
 
-**Serviços no anfitrião (para programar):** com a infraestrutura a correr, arrancar cada módulo no IDE ou com `java -jar <módulo>\target\<módulo>.jar`, primeiro o `bikeshop-registo`. Os valores por omissão do `application.yml` apontam para `localhost` e para as portas da Tabela 5.
+**Serviços no anfitrião (para programar):** com a infraestrutura a correr, arrancar cada módulo no IDE ou com `java -jar <módulo>\target\<módulo>.jar`, primeiro o `bikeshop-registo`. No IntelliJ e no VS Code há a configuração **BikeShop (todos)**, que arranca os 6 (`.run/` e `.vscode/launch.json`). Os valores por omissão do `application.yml` apontam para `localhost` e para as portas da Tabela 5.
 
 **Kubernetes (Minikube):**
 
@@ -253,6 +255,8 @@ docker-compose.apps.yml    os 6 serviços (grupo bikeshop-apps)
 k8s/                       namespace, ConfigMap, Secret e um manifesto por serviço
 scripts/                   arrancar, parar, e2e-test, k8s-deploy, k8s-atualizar e publicar-dockerhub
 postman/                   coleção Postman (a pasta docs/, com os slides, fica fora do Git)
+RUNBOOK.html               como arrancar: Docker, IDE e Kubernetes
+.run/, .vscode/            arranque pelo IntelliJ e pelo VS Code (BikeShop (todos))
 ```
 
 ## 10. Desenvolvimento
