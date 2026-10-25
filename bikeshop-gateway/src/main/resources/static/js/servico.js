@@ -107,6 +107,18 @@ const pagamentoCartao = (p) => el('dl', { class: 'kv' },
     el('dt', {}, 'Encomenda'), el('dd', {}, el('code', {}, p.encomendaId)),
     el('dt', {}, 'Criado'), el('dd', {}, new Date(p.criadoEm).toLocaleString('pt-PT')));
 
+const clientesTabela = (list) => table(['Id', 'Nome', 'Email', 'Morada'], (list || []).map((c) => el('tr', {},
+    el('td', { class: 'num' }, c.id), el('td', {}, c.nome), el('td', {}, el('code', {}, c.email)),
+    el('td', { class: 'muted' }, c.moradaCompleta || 'sem morada'))));
+
+const envioCartao = (v) => el('dl', { class: 'kv' },
+    el('dt', {}, 'Estado'), el('dd', {}, statusChip(v.estado)),
+    el('dt', {}, 'Código'), el('dd', {}, el('code', {}, v.codigo)),
+    el('dt', {}, 'Cliente'), el('dd', {}, v.clienteNome),
+    el('dt', {}, 'Morada'), el('dd', {}, v.morada || 'sem morada'),
+    el('dt', {}, 'Artigos'), el('dd', {}, v.artigos),
+    el('dt', {}, 'Encomenda'), el('dd', {}, el('code', {}, v.encomendaId)));
+
 // ---------- painéis "Experimentar", um por serviço ----------
 
 const PAINEIS = {
@@ -175,6 +187,57 @@ const PAINEIS = {
                 run(out, 'GET', `/pagamentos/encomenda/${encodeURIComponent(id())}`, null, pagamentoCartao);
             } }, orderIdField('pag-order'), el('button', { class: 'btn secondary small' }, 'GET pagamento')),
             el('div', { class: 'try-bar' }, el('span', { class: 'muted small' }, 'Simular o banco (faz avançar a encomenda real):'), act('aprovar'), act('recusar')),
+            out,
+        ];
+    },
+
+    clientes() {
+        const out = el('div', { class: 'out' });
+        const email = el('input', { value: 'rita@bikeshop.pt', type: 'email', 'aria-label': 'Email', spellcheck: 'false' });
+        const form = el('form', { class: 'form', onsubmit: (e) => {
+            e.preventDefault();
+            const f = e.target.elements;
+            run(out, 'POST', '/clientes', {
+                nome: f.nome.value, email: f.email.value, telefone: f.telefone.value || null,
+                morada: f.morada.value || null, codigoPostal: f.codigoPostal.value || null, localidade: f.localidade.value || null,
+            }, (c) => clientesTabela([c]));
+        } },
+        el('h3', { class: 'wide' }, 'Criar cliente'),
+        field('Nome', { name: 'nome', value: 'Marta Sousa', required: true }),
+        field('Email', { name: 'email', type: 'email', value: 'marta@bikeshop.pt', required: true }),
+        field('Telefone', { name: 'telefone', value: '917654321' }),
+        field('Morada', { name: 'morada', value: 'Rua do Almada 50' }),
+        field('Código postal', { name: 'codigoPostal', value: '4050-032' }),
+        field('Localidade', { name: 'localidade', value: 'Porto' }),
+        el('div', { class: 'actions wide' }, el('button', { class: 'btn primary' }, 'POST clientes')),
+        el('p', { class: 'muted small wide' }, 'Responde 201. Um email repetido ou um código postal fora do formato 0000-000 dão 400.'));
+        return [
+            el('div', { class: 'try-bar' },
+                el('button', { class: 'btn primary small', type: 'button', onclick: () => run(out, 'GET', '/clientes', null, clientesTabela) }, 'Todos os clientes')),
+            el('form', { class: 'try-bar', onsubmit: (e) => {
+                e.preventDefault();
+                run(out, 'GET', `/clientes/email/${encodeURIComponent(email.value.trim())}`, null, (c) => clientesTabela([c]));
+            } }, el('label', { class: 'inline-label' }, 'Email', email), el('button', { class: 'btn secondary small' }, 'GET por email')),
+            form,
+            out,
+        ];
+    },
+
+    envios() {
+        const out = el('div', { class: 'out' });
+        const id = () => $('env-order').value.trim();
+        return [
+            el('div', { class: 'try-bar' },
+                el('button', { class: 'btn primary small', type: 'button', onclick: () => run(out, 'GET', '/envios', null, (list) => table(['Encomenda', 'Código', 'Estado', 'Artigos'],
+                    list.map((v) => el('tr', {}, el('td', {}, el('code', { title: v.encomendaId }, `${v.encomendaId.slice(0, 8)}…`)), el('td', {}, el('code', {}, v.codigo)),
+                        el('td', {}, statusChip(v.estado)), el('td', { class: 'num' }, v.artigos))))) }, 'Todos os envios')),
+            el('form', { class: 'try-form', onsubmit: (e) => {
+                e.preventDefault();
+                run(out, 'GET', `/envios/encomenda/${encodeURIComponent(id())}`, null, envioCartao);
+            } }, orderIdField('env-order'), el('button', { class: 'btn secondary small' }, 'GET envio')),
+            el('div', { class: 'try-bar' }, el('span', { class: 'muted small' }, 'Simular a saída do armazém (a encomenda passa a ENVIADA):'),
+                el('button', { class: 'btn primary small', type: 'button', onclick: () => id() && run(out, 'POST', `/envios/encomenda/${encodeURIComponent(id())}/expedir`, null, envioCartao) }, 'POST expedir')),
+            el('p', { class: 'muted small' }, 'Só existe envio depois de a encomenda ser paga.'),
             out,
         ];
     },

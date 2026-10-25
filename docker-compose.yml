@@ -1,4 +1,4 @@
-# Infraestrutura do BikeShop: grupo bikeshop-infra no Docker Desktop (PostgreSQL x4, RabbitMQ, Jaeger e Adminer).
+# Infraestrutura do BikeShop: grupo bikeshop-infra no Docker Desktop (PostgreSQL x6, RabbitMQ, Jaeger e Adminer).
 #   docker compose up -d --wait     # arranca e espera que fique tudo healthy
 #   docker compose down             # para (os volumes bikeshop-*-dados ficam)
 #   docker compose down -v          # para e apaga os dados (voltam os dados de exemplo)
@@ -63,6 +63,28 @@ services:
     ports: ["55435:5432"]
     volumes: ["bikeshop-postgres-encomendas-dados:/var/lib/postgresql/data"]
 
+  bikeshop-postgres-clientes:
+    <<: *postgres
+    container_name: bikeshop-postgres-clientes
+    labels:
+      bikeshop.descricao: "Base de dados dos clientes"
+    environment:
+      <<: *credenciais
+      POSTGRES_DB: bikeshop_clientes
+    ports: ["55436:5432"]
+    volumes: ["bikeshop-postgres-clientes-dados:/var/lib/postgresql/data"]
+
+  bikeshop-postgres-envios:
+    <<: *postgres
+    container_name: bikeshop-postgres-envios
+    labels:
+      bikeshop.descricao: "Base de dados dos envios"
+    environment:
+      <<: *credenciais
+      POSTGRES_DB: bikeshop_envios
+    ports: ["55437:5432"]
+    volumes: ["bikeshop-postgres-envios-dados:/var/lib/postgresql/data"]
+
   bikeshop-rabbitmq:
     image: rabbitmq:3.13-management
     container_name: bikeshop-rabbitmq
@@ -119,5 +141,9 @@ volumes:
     name: bikeshop-postgres-pagamentos-dados
   bikeshop-postgres-encomendas-dados:
     name: bikeshop-postgres-encomendas-dados
+  bikeshop-postgres-clientes-dados:
+    name: bikeshop-postgres-clientes-dados
+  bikeshop-postgres-envios-dados:
+    name: bikeshop-postgres-envios-dados
   bikeshop-rabbitmq-dados:
     name: bikeshop-rabbitmq-dados

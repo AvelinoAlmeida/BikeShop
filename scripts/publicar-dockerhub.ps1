@@ -16,7 +16,7 @@ param(
 $ErrorActionPreference = "Continue"
 $raiz = Split-Path $PSScriptRoot -Parent
 Set-Location $raiz
-$servicos = "bikeshop-registo", "bikeshop-gateway", "bikeshop-catalogo", "bikeshop-stock", "bikeshop-pagamentos", "bikeshop-encomendas"
+$servicos = "bikeshop-registo", "bikeshop-gateway", "bikeshop-catalogo", "bikeshop-stock", "bikeshop-pagamentos", "bikeshop-encomendas", "bikeshop-clientes", "bikeshop-envios"
 
 cmd /c "docker info >nul 2>&1"
 if ($LASTEXITCODE -ne 0) { Write-Host "O Docker nao responde. Abrir o Docker Desktop." -ForegroundColor Red; exit 1 }

@@ -1,4 +1,4 @@
-# Os 6 serviços do BikeShop em contentores: grupo bikeshop-apps no Docker Desktop.
+# Os 8 serviços do BikeShop em contentores: grupo bikeshop-apps no Docker Desktop.
 # A infraestrutura (docker-compose.yml) tem de estar a correr antes:
 #   docker compose up -d --wait
 #   .\mvnw.cmd package -DskipTests
@@ -78,6 +78,26 @@ services:
     environment:
       <<: *ambiente
       DB_HOST: bikeshop-postgres-encomendas
+
+  bikeshop-clientes:
+    <<: *servico
+    build: { context: ., dockerfile: bikeshop-clientes/Dockerfile }
+    image: bikeshop-clientes:1.0
+    container_name: bikeshop-clientes
+    ports: ["9085:9085"]
+    environment:
+      <<: *ambiente
+      DB_HOST: bikeshop-postgres-clientes
+
+  bikeshop-envios:
+    <<: *servico
+    build: { context: ., dockerfile: bikeshop-envios/Dockerfile }
+    image: bikeshop-envios:1.0
+    container_name: bikeshop-envios
+    ports: ["9086:9086"]
+    environment:
+      <<: *ambiente
+      DB_HOST: bikeshop-postgres-envios
 
 networks:
   default:

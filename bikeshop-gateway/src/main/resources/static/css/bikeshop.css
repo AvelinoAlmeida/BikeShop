@@ -434,10 +434,6 @@ a.tag:hover { border-color: var(--c); }
 
 /* Estados das entidades: verde concluído, âmbar a meio, vermelho falhado, azul em curso. */
 .status { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .76rem; font-weight: 700; letter-spacing: .02em; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
-.status.PAID, .status.CAPTURED, .status.DELIVERED, .status.ALLOCATED, .status.SHIPPED { background: var(--ok-bg); color: var(--ok); }
-.status.PLACED, .status.DRAFT, .status.PENDING, .status.RESERVED, .status.REQUIRES_ACTION { background: var(--warn-bg); color: var(--warn); }
-.status.AUTHORIZED, .status.READY, .status.IN_TRANSIT { background: var(--info-bg); color: var(--info); }
-.status.CANCELLED, .status.CANCELED, .status.PAYMENT_FAILED, .status.FAILED, .status.UNRESERVED, .status.DEALLOCATED, .status.REFUNDED { background: var(--bad-bg); color: var(--bad); }
 
 /* ---------- tabelas ---------- */
 
@@ -955,8 +951,9 @@ pre.cmd { color: var(--text); }
 @media (max-width: 560px) { .tools-main .tools-panel { left: 0; right: 0; } }
 
 /* Estados do BikeShop (as entidades usam nomes em português). */
-.status.PAGA, .status.APROVADO, .status.CONFIRMADA { background: var(--ok-bg); color: var(--ok); }
+.status.PAGA, .status.ENVIADA, .status.APROVADO, .status.CONFIRMADA, .status.EXPEDIDO { background: var(--ok-bg); color: var(--ok); }
 .status.PENDENTE, .status.RESERVADA, .status.ATIVA { background: var(--warn-bg); color: var(--warn); }
+.status.EM_PREPARACAO { background: var(--info-bg); color: var(--info); }
 .status.CANCELADA, .status.RECUSADO, .status.LIBERTADA { background: var(--bad-bg); color: var(--bad); }
 
 .danger { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 16px; border: 1px solid var(--bad); border-radius: 10px; background: var(--bad-bg); color: var(--bad); font-weight: 600; line-height: 1.2; }
@@ -975,6 +972,6 @@ pre.cmd { color: var(--text); }
 @media (max-width: 860px) { .two { grid-template-columns: minmax(0, 1fr); } }
 
 /* O BikeShop tem 4 serviços de negócio: uma linha de 4 em vez da grelha de 3 do GameShop. */
-.arch .arch-business { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.arch .arch-business { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 1040px) { .arch .arch-business { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .arch .arch-business { grid-template-columns: minmax(0, 1fr); } }

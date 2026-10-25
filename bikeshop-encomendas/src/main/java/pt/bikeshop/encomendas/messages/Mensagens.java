@@ -28,6 +28,14 @@ public final class Mensagens {
     public record CriarPagamento(UUID encomendaId, BigDecimal valor) {
     }
 
+    /** Para os envios: preparar o envio da encomenda paga. */
+    public record CriarEnvio(UUID encomendaId, String clienteNome, String clienteEmail, String morada, int artigos) {
+    }
+
+    /** Resposta dos envios: a encomenda saiu do armazém com este código de seguimento. */
+    public record EnvioExpedido(UUID encomendaId, String codigo) {
+    }
+
     /** Resposta do stock ou dos pagamentos; motivo só quando correu mal. */
     public record Resposta(UUID encomendaId, String motivo) {
     }

@@ -12,7 +12,7 @@ $ErrorActionPreference = "Continue"
 $raiz = Split-Path $PSScriptRoot -Parent
 Set-Location $raiz
 $perfil = "bikeshop-minikube"
-$servicos = "bikeshop-registo", "bikeshop-gateway", "bikeshop-catalogo", "bikeshop-stock", "bikeshop-pagamentos", "bikeshop-encomendas"
+$servicos = "bikeshop-registo", "bikeshop-gateway", "bikeshop-catalogo", "bikeshop-stock", "bikeshop-pagamentos", "bikeshop-encomendas", "bikeshop-clientes", "bikeshop-envios"
 
 Write-Host "== 1/4 Infraestrutura (bikeshop-infra) e cluster ($perfil)" -ForegroundColor Cyan
 cmd /c "docker compose up -d --wait 2>&1" | Out-Null

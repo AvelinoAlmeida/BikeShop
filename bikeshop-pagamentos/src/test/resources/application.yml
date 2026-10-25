@@ -21,3 +21,7 @@ management:
   tracing:
     export:
       enabled: false
+  otlp:
+    metrics:
+      export:
+        enabled: false

@@ -61,4 +61,16 @@ class EncomendaTest {
         assertThat(e.marcarReservada()).isTrue();
         assertThat(e.marcarReservada()).isFalse();
     }
+
+    @Test
+    void enviadaSoDepoisDePagaENaoECancelada() {
+        Encomenda e = new Encomenda("Ana", "ana@bikeshop.pt");
+        e.marcarReservada();
+
+        assertThat(e.marcarEnviada("BS-1")).isFalse();
+        e.marcarPaga();
+        assertThat(e.marcarEnviada("BS-1")).isTrue();
+        assertThat(e.cancelar("tarde demais")).isFalse();
+        assertThat(e.getEstado()).isEqualTo(Encomenda.Estado.ENVIADA);
+    }
 }

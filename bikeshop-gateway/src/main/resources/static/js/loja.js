@@ -114,14 +114,18 @@ function abrirEncomenda(id) {
 async function desenharSaga(id) {
     let enc;
     let pag = null;
+    let envio = null;
     try { enc = await api('GET', `${API}/encomendas/${id}`); } catch (e) {
         $('timeline').replaceChildren(el('li', {}, el('span', { class: 'resp-error' }, e.mensagem)));
         return;
     }
     if (id !== encomendaAberta) return;
     try { pag = await api('GET', `${API}/pagamentos/encomenda/${id}`); } catch { /* ainda não criado */ }
+    if (['PAGA', 'ENVIADA'].includes(enc.estado)) {
+        try { envio = await api('GET', `${API}/envios/encomenda/${id}`); } catch { /* ainda não criado */ }
+    }
 
-    $('o-cliente').textContent = `${enc.clienteNome} · ${euros.format(enc.total)}`;
+    $('o-cliente').textContent = [enc.clienteNome, euros.format(enc.total), enc.moradaEntrega, enc.codigoEnvio].filter(Boolean).join(' · ');
     $('o-id').textContent = enc.id;
     $('o-status').className = `status ${enc.estado}`;
     $('o-status').textContent = enc.estado;
@@ -136,7 +140,9 @@ async function desenharSaga(id) {
         { titulo: 'Pagamento pedido', who: 'pagamentos criou o pagamento PENDENTE', chave: 'pagamento.criar', svc: 'pagamentos', feito: !!pag, saltado: semStock },
         recusado
             ? { titulo: 'Pagamento recusado', who: 'compensação: o stock liberta as unidades', chave: 'stock.libertar', svc: 'stock', falhou: true }
-            : { titulo: 'Pagamento aprovado', who: 'encomenda PAGA; o stock dá baixa', chave: 'stock.confirmar', svc: 'stock', feito: enc.estado === 'PAGA', saltado: semStock },
+            : { titulo: 'Pagamento aprovado', who: 'encomenda PAGA; o stock dá baixa', chave: 'stock.confirmar', svc: 'stock', feito: ['PAGA', 'ENVIADA'].includes(enc.estado), saltado: semStock },
+        { titulo: 'Envio preparado', who: envio ? `envios · ${envio.codigo}` : 'envios prepara a entrega', chave: 'envio.criar', svc: 'envios', feito: !!envio, saltado: semStock || recusado },
+        { titulo: 'Encomenda enviada', who: 'saiu do armazém; encomenda ENVIADA', chave: 'envio.expedido', svc: 'envios', feito: enc.estado === 'ENVIADA', saltado: semStock || recusado },
     ];
     const atual = passos.findIndex((p) => !p.feito && !p.falhou && !p.saltado);
 
@@ -148,14 +154,22 @@ async function desenharSaga(id) {
         el('span', { class: 'label' }, p.titulo, el('span', { class: 'who' }, p.who)),
         el('span', { class: 'when' }, el('code', {}, p.chave)))));
 
-    const pagamento = $('o-payment');
-    pagamento.hidden = !(pag && pag.estado === 'PENDENTE');
-    if (!pagamento.hidden) {
-        pagamento.replaceChildren(
+    // Ação simulada do passo atual: o banco decide o pagamento; depois, o armazém expede o envio
+    const acao = $('o-payment');
+    const pagar = pag && pag.estado === 'PENDENTE';
+    const expedir = envio && envio.estado === 'EM_PREPARACAO';
+    acao.hidden = !(pagar || expedir);
+    if (pagar) {
+        acao.replaceChildren(
             el('p', { class: 'muted small' }, 'O pagamento é simulado: decida como se fosse o banco.'),
             el('div', { class: 'actions' },
-                el('button', { class: 'primary', type: 'button', onclick: () => pagar(id, 'aprovar') }, `Aprovar ${euros.format(pag.valor)}`),
-                el('button', { class: 'danger', type: 'button', onclick: () => pagar(id, 'recusar') }, 'Recusar')));
+                el('button', { class: 'primary', type: 'button', onclick: () => decidirPagamento(id, 'aprovar') }, `Aprovar ${euros.format(pag.valor)}`),
+                el('button', { class: 'danger', type: 'button', onclick: () => decidirPagamento(id, 'recusar') }, 'Recusar')));
+    } else if (expedir) {
+        acao.replaceChildren(
+            el('p', { class: 'muted small' }, `Envio ${envio.codigo} em preparação${envio.morada ? ` para ${envio.morada}` : ''}.`),
+            el('div', { class: 'actions' },
+                el('button', { class: 'primary', type: 'button', onclick: () => expedirEnvio(id) }, 'Expedir')));
     }
 
     $('o-lines').replaceChildren(
@@ -165,12 +179,20 @@ async function desenharSaga(id) {
                 el('td', {}, l.nome), el('td', { class: 'num' }, l.quantidade), el('td', { class: 'num' }, euros.format(l.subtotal))))))));
 }
 
-async function pagar(id, acao) {
+async function decidirPagamento(id, acao) {
     try {
         await api('POST', `${API}/pagamentos/encomenda/${id}/${acao}`);
-        showNotice(acao === 'aprovar' ? 'Pagamento aprovado' : 'Pagamento recusado: a SAGA vai compensar');
+        showNotice(acao === 'aprovar' ? 'Pagamento aprovado: o envio vai ser preparado' : 'Pagamento recusado: a SAGA vai compensar');
         desenharSaga(id);
     } catch (e) { showError(e, 'Pagamento'); }
+}
+
+async function expedirEnvio(id) {
+    try {
+        await api('POST', `${API}/envios/encomenda/${id}/expedir`);
+        showNotice('Envio expedido: a encomenda passa a ENVIADA');
+        desenharSaga(id);
+    } catch (e) { showError(e, 'Envio'); }
 }
 
 async function desenharLista() {

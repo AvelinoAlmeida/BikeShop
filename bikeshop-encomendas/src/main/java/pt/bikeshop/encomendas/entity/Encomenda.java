@@ -25,7 +25,7 @@ import java.util.UUID;
 @NoArgsConstructor
 public class Encomenda {
 
-    public enum Estado { PENDENTE, RESERVADA, PAGA, CANCELADA }
+    public enum Estado { PENDENTE, RESERVADA, PAGA, ENVIADA, CANCELADA }
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -38,6 +38,19 @@ public class Encomenda {
     @Setter
     @Column(nullable = false, length = 120)
     private String clienteEmail;
+
+    /** Id do cliente no bikeshop-clientes (só a identidade; os dados ficam lá). */
+    @Setter
+    private Long clienteId;
+
+    /** Morada de entrega copiada da ficha do cliente quando a encomenda foi feita. */
+    @Setter
+    @Column(length = 200)
+    private String moradaEntrega;
+
+    /** Código de seguimento dado pelo bikeshop-envios quando a encomenda sai do armazém. */
+    @Column(length = 12)
+    private String codigoEnvio;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
@@ -92,9 +105,19 @@ public class Encomenda {
         return true;
     }
 
+    /** O envio saiu do armazém. */
+    public boolean marcarEnviada(String codigoEnvio) {
+        if (estado != Estado.PAGA) {
+            return false;
+        }
+        estado = Estado.ENVIADA;
+        this.codigoEnvio = codigoEnvio;
+        return true;
+    }
+
     /** Stock insuficiente ou pagamento recusado. */
     public boolean cancelar(String motivo) {
-        if (estado == Estado.PAGA || estado == Estado.CANCELADA) {
+        if (estado == Estado.PAGA || estado == Estado.ENVIADA || estado == Estado.CANCELADA) {
             return false;
         }
         estado = Estado.CANCELADA;

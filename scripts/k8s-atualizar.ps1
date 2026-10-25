@@ -10,7 +10,7 @@
 #>
 param(
     [Parameter(Mandatory = $true)][string]$Utilizador,
-    [Parameter(Mandatory = $true)][ValidateSet("registo", "gateway", "catalogo", "stock", "pagamentos", "encomendas")][string]$Servico,
+    [Parameter(Mandatory = $true)][ValidateSet("registo", "gateway", "catalogo", "stock", "pagamentos", "encomendas", "clientes", "envios")][string]$Servico,
     [string]$Versao = "2.0"
 )
 $ErrorActionPreference = "Continue"

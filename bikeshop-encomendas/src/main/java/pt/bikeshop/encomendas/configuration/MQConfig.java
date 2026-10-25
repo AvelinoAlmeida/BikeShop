@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * RabbitMQ das encomendas (slide 05). A encomenda é a orquestradora da SAGA:
- * envia pedidos ao stock e aos pagamentos e ouve as respostas de ambos.
+ * envia pedidos ao stock, aos pagamentos e aos envios e ouve as respostas de todos.
  */
 @Configuration
 public class MQConfig {
@@ -27,17 +27,20 @@ public class MQConfig {
     public static final String STOCK_CONFIRMAR = "stock.confirmar";
     public static final String STOCK_LIBERTAR = "stock.libertar";
     public static final String PAGAMENTO_CRIAR = "pagamento.criar";
+    public static final String ENVIO_CRIAR = "envio.criar";
 
     // Respostas que a encomenda ouve
     public static final String STOCK_RESERVADO = "stock.reservado";
     public static final String STOCK_INSUFICIENTE = "stock.insuficiente";
     public static final String PAGAMENTO_APROVADO = "pagamento.aprovado";
     public static final String PAGAMENTO_RECUSADO = "pagamento.recusado";
+    public static final String ENVIO_EXPEDIDO = "envio.expedido";
 
     public static final String FILA_STOCK_RESERVADO = "encomendas.stock-reservado.fila";
     public static final String FILA_STOCK_INSUFICIENTE = "encomendas.stock-insuficiente.fila";
     public static final String FILA_PAGAMENTO_APROVADO = "encomendas.pagamento-aprovado.fila";
     public static final String FILA_PAGAMENTO_RECUSADO = "encomendas.pagamento-recusado.fila";
+    public static final String FILA_ENVIO_EXPEDIDO = "encomendas.envio-expedido.fila";
 
     @Bean
     public TopicExchange exchange() {
@@ -65,6 +68,11 @@ public class MQConfig {
     }
 
     @Bean
+    public Queue filaEnvioExpedido() {
+        return new Queue(FILA_ENVIO_EXPEDIDO);
+    }
+
+    @Bean
     public Binding ligacaoStockReservado(Queue filaStockReservado, TopicExchange exchange) {
         return BindingBuilder.bind(filaStockReservado).to(exchange).with(STOCK_RESERVADO);
     }
@@ -82,6 +90,11 @@ public class MQConfig {
     @Bean
     public Binding ligacaoPagamentoRecusado(Queue filaPagamentoRecusado, TopicExchange exchange) {
         return BindingBuilder.bind(filaPagamentoRecusado).to(exchange).with(PAGAMENTO_RECUSADO);
+    }
+
+    @Bean
+    public Binding ligacaoEnvioExpedido(Queue filaEnvioExpedido, TopicExchange exchange) {
+        return BindingBuilder.bind(filaEnvioExpedido).to(exchange).with(ENVIO_EXPEDIDO);
     }
 
     @Bean

@@ -1,14 +1,14 @@
 'use strict';
 
-// Conteúdo das páginas: o grupo, as fichas dos 6 microsserviços, a SAGA e as ferramentas.
+// Conteúdo das páginas: o grupo, as fichas dos 8 microsserviços, a SAGA e as ferramentas.
 // Cada cor é uma equipa com o nome do seu domínio (equipa). O campo "nome" é o formando responsável,
 // mostrado só no rodapé: para pôr os nomes basta alterá-lo aqui.
 
 const GRUPO = [
-    { n: 1, nome: 'Elemento 1', equipa: 'Catálogo', cor: 'm1', servicos: ['catalogo'] },
-    { n: 2, nome: 'Elemento 2', equipa: 'Encomenda', cor: 'm2', servicos: ['encomendas'] },
-    { n: 3, nome: 'Elemento 3', equipa: 'Armazém', cor: 'm3', servicos: ['stock'] },
-    { n: 4, nome: 'Elemento 4', equipa: 'Pagamento', cor: 'm4', servicos: ['pagamentos', 'gateway', 'registo'] },
+    { n: 1, nome: 'Elemento 1', equipa: 'Catálogo', cor: 'm1', servicos: ['catalogo', 'gateway'] },
+    { n: 2, nome: 'Elemento 2', equipa: 'Encomenda', cor: 'm2', servicos: ['encomendas', 'clientes'] },
+    { n: 3, nome: 'Elemento 3', equipa: 'Armazém', cor: 'm3', servicos: ['stock', 'envios'] },
+    { n: 4, nome: 'Elemento 4', equipa: 'Pagamento', cor: 'm4', servicos: ['pagamentos', 'registo'] },
 ];
 
 // Cada ficha segue a mesma ordem de secções na página servico.html?id=<id>.
@@ -165,19 +165,20 @@ const SERVICOS = [
         tipo: 'negócio',
         bd: 'PostgreSQL bikeshop_encomendas (55435)',
         probe: '/encomendas/landing',
-        resumo: 'Encomendas da loja; orquestra a SAGA entre o stock e os pagamentos.',
+        resumo: 'Encomendas da loja; orquestra a SAGA entre o stock, os pagamentos e os envios.',
         responsabilidade: [
             'Receber a encomenda e gravá-la PENDENTE com os nomes e preços do catálogo (Feign).',
-            'Conduzir a SAGA: pedir a reserva, pedir o pagamento, confirmar ou compensar.',
+            'Registar o cliente nos clientes (Feign) e guardar a morada de entrega.',
+            'Conduzir a SAGA: pedir a reserva, pedir o pagamento, confirmar ou compensar, pedir o envio.',
             'Guardar o estado da encomenda e o motivo quando é cancelada.',
         ],
         tecnologias: ['Spring Web MVC', 'Spring Data JPA', 'PostgreSQL', 'RabbitMQ', 'OpenFeign', 'Resilience4j', 'LoadBalancer', 'ModelMapper', 'Eureka Client', 'OpenTelemetry', 'springdoc (OpenAPI)'],
         entidades: [
-            { nome: 'Encomenda', atributos: ['id: UUID', 'clienteNome', 'clienteEmail', 'estado', 'total', 'motivo', 'linhas', 'criadoEm, alteradoEm'] },
+            { nome: 'Encomenda', atributos: ['id: UUID', 'clienteNome, clienteEmail, clienteId', 'moradaEntrega', 'estado', 'total', 'motivo', 'codigoEnvio', 'linhas', 'criadoEm, alteradoEm'] },
             { nome: 'LinhaEncomenda', atributos: ['id: Long', 'encomenda', 'referencia', 'nome', 'precoUnitario', 'quantidade', 'subtotal'] },
         ],
         relacao: 'Uma encomenda tem várias linhas (1:N), gravadas em conjunto (agregado).',
-        estados: [{ nome: 'Encomenda', valores: ['PENDENTE', 'RESERVADA', 'PAGA', 'CANCELADA'] }],
+        estados: [{ nome: 'Encomenda', valores: ['PENDENTE', 'RESERVADA', 'PAGA', 'ENVIADA', 'CANCELADA'] }],
         endpoints: [
             ['GET', '/api/encomendas', 'Listar as encomendas'],
             ['GET', '/api/encomendas/{id}', 'Consultar uma encomenda'],
@@ -189,31 +190,123 @@ const SERVICOS = [
             ['pagamento.criar', 'pagamentos', 'stock reservado: pedir o pagamento'],
             ['stock.confirmar', 'stock', 'pagamento aprovado: dar baixa'],
             ['stock.libertar', 'stock', 'pagamento recusado: compensação'],
+            ['envio.criar', 'envios', 'pagamento aprovado: preparar o envio'],
         ],
         consome: [
             ['stock.reservado', 'stock', 'passa a RESERVADA'],
             ['stock.insuficiente', 'stock', 'passa a CANCELADA'],
             ['pagamento.aprovado', 'pagamentos', 'passa a PAGA'],
             ['pagamento.recusado', 'pagamentos', 'passa a CANCELADA'],
+            ['envio.expedido', 'envios', 'passa a ENVIADA, com o código de seguimento'],
         ],
-        chama: ['catalogo'],
+        chama: ['catalogo', 'clientes'],
         chamadoPor: ['gateway'],
         decisoes: [
             'SAGA orquestrada: só a encomenda sabe a ordem dos passos; o stock e os pagamentos só respondem.',
             'Responde 202: a encomenda fica PENDENTE e avança sozinha quando chegam as mensagens.',
             'Os estados só avançam pela ordem certa (marcarReservada, marcarPaga, cancelar); uma mensagem repetida não faz nada.',
             'Publica só depois do commit, para o stock nunca receber uma encomenda que não ficou gravada.',
-            'Circuit breaker (Resilience4j) na chamada ao catálogo: com o catálogo em baixo, responde 503 e, com o circuito aberto, falha logo sem esperar.',
+            'Circuit breaker (Resilience4j) nas chamadas ao catálogo e aos clientes: com um deles em baixo, responde 503 e, com o circuito aberto, falha logo sem esperar.',
         ],
         testes: [
             ['CatalogoClientTest', 4, 'O Feign a sério contra duas instâncias falsas do catálogo: o JSON, o balanceamento, o 404 e a sua tradução em 400'],
             ['CatalogoIndisponivelTest', 1, 'Catálogo parado: 503 e, depois de 5 falhas, o circuito abre'],
             ['EncomendasControllerTest', 7, '@WebMvcTest: landing, POST 202, email inválido, sem linhas, JSON mal formado (400), 404 e catálogo em baixo (503)'],
-            ['EncomendaTest', 6, 'O agregado: total, quantidade zero, caminho feliz, transições proibidas e repetições'],
-            ['EncomendasServiceTest', 6, 'Unitários: preço do catálogo, peça inexistente, cada resposta da SAGA e a compensação'],
+            ['EncomendaTest', 7, 'O agregado: total, quantidade zero, caminho feliz, transições proibidas, repetições e ENVIADA'],
+            ['EncomendasServiceTest', 8, 'Unitários: preço do catálogo e cliente, peça inexistente, clientes em baixo, cada resposta da SAGA, a compensação e o envio'],
             ['EncomendaRepositoryTest', 1, '@DataJpaTest: gravar a encomenda com as linhas'],
         ],
         verificar: ['curl.exe -s http://localhost:9080/api/encomendas', 'As 50 encomendas mais recentes'],
+    },
+    {
+        id: 'clientes',
+        nome: 'bikeshop-clientes',
+        porta: 9085,
+        tipo: 'negócio',
+        bd: 'PostgreSQL bikeshop_clientes (55436)',
+        probe: '/clientes/landing',
+        resumo: 'Clientes da loja e moradas de entrega; a encomenda regista aqui quem compra.',
+        responsabilidade: [
+            'Guardar os clientes: nome, email (único), telefone e morada.',
+            'Registar o cliente quando faz a primeira encomenda (a encomenda chama-o por Feign).',
+            'Dar a morada completa, que segue para o envio.',
+            'Criar, alterar e apagar clientes.',
+        ],
+        tecnologias: ['Spring Web MVC', 'Spring Data JPA', 'PostgreSQL', 'ModelMapper', 'Auditoria JPA', 'Bean Validation', 'Eureka Client', 'OpenTelemetry', 'springdoc (OpenAPI)'],
+        entidades: [
+            { nome: 'Cliente', atributos: ['id: Long', 'nome', 'email (único)', 'telefone', 'morada, codigoPostal, localidade', 'criadoEm, alteradoEm'] },
+        ],
+        relacao: 'As encomendas guardam só o clienteId e uma cópia da morada. Os clientes de exemplo vêm do data.sql.',
+        estados: [],
+        endpoints: [
+            ['GET', '/api/clientes', 'Listar os clientes'],
+            ['GET', '/api/clientes/{id}', 'Consultar um cliente'],
+            ['GET', '/api/clientes/email/{email}', 'Procurar pelo email'],
+            ['POST', '/api/clientes', 'Criar um cliente (201)'],
+            ['PUT', '/api/clientes/{id}', 'Alterar um cliente'],
+            ['DELETE', '/api/clientes/{id}', 'Apagar um cliente (204)'],
+            ['POST', '/api/clientes/registo', 'Devolver ou registar pelo email (usado pela encomenda)'],
+            ['GET', '/api/clientes/landing', 'Confirmar que o serviço responde'],
+        ],
+        publica: [],
+        consome: [],
+        chama: [],
+        chamadoPor: ['gateway', 'encomendas'],
+        decisoes: [
+            'Não fala por mensagens: a encomenda precisa do cliente antes de gravar, por isso chama-o por Feign.',
+            'O registo é idempotente: o mesmo email devolve sempre o mesmo cliente.',
+            'Código postal validado (0000-000); email duplicado dá 400.',
+        ],
+        testes: [
+            ['ClientesControllerTest', 6, '@WebMvcTest: landing, criar 201, email inválido, código postal inválido, 404 com o nome do serviço e registo'],
+            ['ClientesServiceTest', 3, 'Unitários: registo de um cliente que existe, de um novo, e email duplicado'],
+            ['ClienteRepositoryTest', 1, '@DataJpaTest: procura por email sem distinguir maiúsculas e auditoria'],
+        ],
+        verificar: ['curl.exe -s http://localhost:9080/api/clientes', 'Os clientes de exemplo, com a morada'],
+    },
+    {
+        id: 'envios',
+        nome: 'bikeshop-envios',
+        porta: 9086,
+        tipo: 'negócio',
+        bd: 'PostgreSQL bikeshop_envios (55437)',
+        probe: '/envios/landing',
+        resumo: 'Envio de cada encomenda paga: fica em preparação até sair do armazém.',
+        responsabilidade: [
+            'Criar o envio EM_PREPARACAO, com um código de seguimento, quando a encomenda é paga (envio.criar).',
+            'Simular a saída do armazém: expedir, por pedido REST.',
+            'Avisar a encomenda (envio.expedido), que passa a ENVIADA.',
+        ],
+        tecnologias: ['Spring Web MVC', 'Spring Data JPA', 'PostgreSQL', 'RabbitMQ', 'ModelMapper', 'Eureka Client', 'OpenTelemetry', 'springdoc (OpenAPI)'],
+        entidades: [
+            { nome: 'Envio', atributos: ['id: UUID', 'encomendaId: UUID (único)', 'codigo (único)', 'clienteNome, clienteEmail', 'morada', 'artigos', 'estado', 'criadoEm, alteradoEm'] },
+        ],
+        relacao: 'Um envio por encomenda paga (encomendaId único).',
+        estados: [{ nome: 'Envio', valores: ['EM_PREPARACAO', 'EXPEDIDO'] }],
+        endpoints: [
+            ['GET', '/api/envios', 'Listar os envios'],
+            ['GET', '/api/envios/encomenda/{id}', 'Envio de uma encomenda'],
+            ['POST', '/api/envios/encomenda/{id}/expedir', 'Simular a saída do armazém'],
+            ['GET', '/api/envios/landing', 'Confirmar que o serviço responde'],
+        ],
+        publica: [
+            ['envio.expedido', 'encomendas', 'a encomenda fica ENVIADA'],
+        ],
+        consome: [
+            ['envio.criar', 'encomendas', 'criar o envio EM_PREPARACAO'],
+        ],
+        chama: [],
+        chamadoPor: ['gateway'],
+        decisoes: [
+            'Só depois de PAGA: um envio nunca existe para uma encomenda cancelada.',
+            'Idempotente: um envio.criar repetido não cria um segundo envio.',
+            'Só um envio EM_PREPARACAO pode ser expedido.',
+        ],
+        testes: [
+            ['EnviosControllerTest', 5, '@WebMvcTest: landing, envio da encomenda, 404, expedir e expedir duas vezes (400)'],
+            ['EnviosServiceTest', 4, 'Unitários: criar com código de seguimento, mensagem repetida, expedir e não expedir duas vezes'],
+        ],
+        verificar: ['curl.exe -s http://localhost:9080/api/envios', 'Lista dos envios (vazia num arranque limpo)'],
     },
     {
         id: 'gateway',
@@ -236,6 +329,9 @@ const SERVICOS = [
             ['/api/stock/**', 'stock', '/api/stock/landing'],
             ['/api/pagamentos/**', 'pagamentos', '/api/pagamentos/landing'],
             ['/api/encomendas/**', 'encomendas', '/api/encomendas/landing'],
+            ['/api/clientes/**', 'clientes', '/api/clientes/landing'],
+            ['/api/envios/**', 'envios', '/api/envios/landing'],
+            ['/api-docs/<serviço>', '6 serviços', '/swagger-ui.html'],
             ['/bastidores/registo', 'registo', '/bastidores/registo'],
             ['/bastidores/filas', 'RabbitMQ', '/bastidores/filas'],
         ],
@@ -247,7 +343,7 @@ const SERVICOS = [
         ],
         publica: [],
         consome: [],
-        chama: ['catalogo', 'stock', 'pagamentos', 'encomendas'],
+        chama: ['catalogo', 'stock', 'pagamentos', 'encomendas', 'clientes', 'envios'],
         chamadoPor: ['browser'],
         decisoes: [
             'O browser só fala com a gateway: os serviços não estão expostos à página.',
@@ -290,16 +386,18 @@ const SERVICOS = [
 
 // Passos da SAGA, na visão geral.
 const SAGA = [
-    { label: 'Encomenda criada', who: 'encomendas · PENDENTE', svc: 'encomendas' },
+    { label: 'Encomenda criada', who: 'encomendas · PENDENTE (cliente registado)', svc: 'encomendas' },
     { label: 'Stock reservado', who: 'stock → encomendas · RESERVADA', svc: 'stock' },
     { label: 'Pagamento pedido', who: 'encomendas → pagamentos · PENDENTE', svc: 'pagamentos' },
     { label: 'Pagamento decidido', who: 'pagamentos · APROVADO ou RECUSADO', svc: 'pagamentos' },
     { label: 'Encomenda fechada', who: 'encomendas · PAGA ou CANCELADA', svc: 'encomendas' },
     { label: 'Stock acertado', who: 'stock · confirmar ou libertar', svc: 'stock' },
+    { label: 'Envio preparado', who: 'encomendas → envios · EM_PREPARACAO', svc: 'envios' },
+    { label: 'Encomenda enviada', who: 'envios → encomendas · ENVIADA', svc: 'envios' },
 ];
 
 // Quem consome cada fila do RabbitMQ (o prefixo do nome da fila).
-const CONSUMIDOR = { stock: 'stock', pagamentos: 'pagamentos', encomendas: 'encomendas' };
+const CONSUMIDOR = { stock: 'stock', pagamentos: 'pagamentos', encomendas: 'encomendas', envios: 'envios' };
 
 // Ferramentas externas, no botão "Ferramentas" do cabeçalho. icon: conteúdo de um SVG 24x24 com traço;
 // uma ferramenta com links tem um endereço por serviço em vez de url.
@@ -317,7 +415,7 @@ const FERRAMENTAS = [
       nota: 'PostgreSQL, servidor bikeshop-postgres-<serviço>, bikeshop / bikeshop',
       icon: '<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/>' },
     { id: 'jaeger', nome: 'Jaeger', url: 'http://localhost:16687', cor: '#60a5fa',
-      faz: 'Traces: o caminho de cada pedido pelos serviços, por exemplo uma encomenda da gateway aos pagamentos.',
+      faz: 'Traces: o caminho de cada pedido pelos serviços, por exemplo uma encomenda da gateway aos envios.',
       nota: 'sem login; escolher o serviço bikeshop-gateway',
       icon: '<path d="M3 6h7M6 12h9M9 18h12"/><circle cx="12" cy="6" r="1.5"/><circle cx="18" cy="12" r="1.5"/>' },
     { id: 'swagger', nome: 'Swagger UI', url: 'http://localhost:9080/swagger-ui.html', cor: '#84cc16',

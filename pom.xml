@@ -25,6 +25,8 @@
         <module>bikeshop-stock</module>
         <module>bikeshop-pagamentos</module>
         <module>bikeshop-encomendas</module>
+        <module>bikeshop-clientes</module>
+        <module>bikeshop-envios</module>
         <module>bikeshop-gateway</module>
     </modules>
 

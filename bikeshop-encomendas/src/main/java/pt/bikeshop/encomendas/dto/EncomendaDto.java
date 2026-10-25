@@ -12,6 +12,9 @@ public class EncomendaDto {
     private UUID id;
     private String clienteNome;
     private String clienteEmail;
+    private Long clienteId;
+    private String moradaEntrega;
+    private String codigoEnvio;
     private String estado;
     private BigDecimal total;
     private String motivo;

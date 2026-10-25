@@ -5,6 +5,10 @@ spring:
   application:
     name: bikeshop-gateway
   cloud:
+    # A lista de instâncias guardada pelo LoadBalancer dura 5 s (por omissão, 35 s)
+    loadbalancer:
+      cache:
+        ttl: 5s
     gateway:
       server:
         webflux:
@@ -26,6 +30,14 @@ spring:
               uri: lb://bikeshop-encomendas
               predicates:
                 - Path=/api/encomendas/**
+            - id: clientes
+              uri: lb://bikeshop-clientes
+              predicates:
+                - Path=/api/clientes/**
+            - id: envios
+              uri: lb://bikeshop-envios
+              predicates:
+                - Path=/api/envios/**
             # Documentação OpenAPI de cada serviço, para a Swagger UI: /api-docs/catalogo -> /v3/api-docs
             - id: docs-catalogo
               uri: lb://bikeshop-catalogo
@@ -51,6 +63,18 @@ spring:
                 - Path=/api-docs/encomendas
               filters:
                 - SetPath=/v3/api-docs
+            - id: docs-clientes
+              uri: lb://bikeshop-clientes
+              predicates:
+                - Path=/api-docs/clientes
+              filters:
+                - SetPath=/v3/api-docs
+            - id: docs-envios
+              uri: lb://bikeshop-envios
+              predicates:
+                - Path=/api-docs/envios
+              filters:
+                - SetPath=/v3/api-docs
             # Só leitura, para a página Bastidores: o registo do Eureka...
             - id: registo
               uri: http://${EUREKA_HOST:localhost}:9761
@@ -70,7 +94,7 @@ spring:
                 - SetPath=/api/queues
                 - SetRequestHeader=Authorization, Basic ${RABBITMQ_BASIC:YmlrZXNob3A6YmlrZXNob3A=}
 
-# Swagger UI (http://localhost:9080/swagger-ui.html): um separador por serviço de negócio
+# Swagger UI (http://localhost:9080/swagger-ui.html): um separador por serviço de negócio (6)
 springdoc:
   swagger-ui:
     urls-primary-name: catalogo
@@ -83,11 +107,17 @@ springdoc:
         url: /api-docs/pagamentos
       - name: encomendas
         url: /api-docs/encomendas
+      - name: clientes
+        url: /api-docs/clientes
+      - name: envios
+        url: /api-docs/envios
 
 eureka:
   client:
     service-url:
       defaultZone: http://${EUREKA_HOST:localhost}:9761/eureka/
+    # Quem chama outros serviços vê as instâncias novas ao fim de 5 s (por omissão, 30 s)
+    registry-fetch-interval-seconds: 5
   instance:
     prefer-ip-address: true
 

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>BikeShop</title>
-    <meta name="description" content="BikeShop: loja de peças para bicicletas elétricas feita com 6 microsserviços. Arquitetura, grupo, SAGA da encomenda e estado ao vivo.">
+    <meta name="description" content="BikeShop: loja de peças para bicicletas elétricas feita com 8 microsserviços. Arquitetura, grupo, SAGA da encomenda e estado ao vivo.">
     <link rel="icon" href="img/logo.svg" type="image/svg+xml">
     <link rel="stylesheet" href="css/bikeshop.css">
     <script>try { const t = localStorage.getItem('bikeshop.theme'); if (t) document.documentElement.dataset.theme = t; } catch { }</script>
@@ -29,16 +29,16 @@
     </section>
 
     <ul class="stats" aria-label="Números do projeto">
-        <li><strong>6</strong><span>microsserviços</span></li>
-        <li><strong>4</strong><span>bases de dados PostgreSQL</span></li>
-        <li><strong>8</strong><span>mensagens RabbitMQ</span></li>
-        <li><strong>56</strong><span>testes automáticos</span></li>
+        <li><strong>8</strong><span>microsserviços</span></li>
+        <li><strong>6</strong><span>bases de dados PostgreSQL</span></li>
+        <li><strong>10</strong><span>mensagens RabbitMQ</span></li>
+        <li><strong>78</strong><span>testes automáticos</span></li>
     </ul>
 
     <section id="arquitetura" class="section" aria-labelledby="arq-title">
         <div class="section-head">
             <h2 id="arq-title">Arquitetura</h2>
-            <p>O browser só fala com a bikeshop-gateway, que encontra cada serviço no bikeshop-registo (Eureka) pelo nome. Cada serviço de negócio tem a sua base de dados. A encomenda chama o catálogo por Feign e fala com o stock e os pagamentos por mensagens. Clique num serviço para ver a sua ficha.</p>
+            <p>O browser só fala com a bikeshop-gateway, que encontra cada serviço no bikeshop-registo (Eureka) pelo nome. Cada serviço de negócio tem a sua base de dados. A encomenda chama o catálogo e os clientes por Feign e fala com o stock, os pagamentos e os envios por mensagens. Clique num serviço para ver a sua ficha.</p>
         </div>
         <div class="arch" id="arch">
             <div class="arch-row arch-client">
@@ -51,7 +51,7 @@
             <div class="arch-bus">
                 <span class="arch-icon" aria-hidden="true">⇄</span>
                 <strong>RabbitMQ</strong>
-                <span>exchange topic bikeshop.eventos: a encomenda fala com o stock e os pagamentos</span>
+                <span>exchange topic bikeshop.eventos: a encomenda fala com o stock, os pagamentos e os envios</span>
             </div>
             <div class="arch-legend" id="arch-legend"></div>
         </div>
@@ -68,7 +68,7 @@
     <section id="saga" class="section" aria-labelledby="saga-title">
         <div class="section-head">
             <h2 id="saga-title">A SAGA da encomenda</h2>
-            <p>A encomenda conduz os passos (SAGA orquestrada). Não há transação comum: cada passo é local e, se o pagamento for recusado, o stock liberta o que reservou. Na <a href="loja.html">loja</a> vê estes passos a acontecer.</p>
+            <p>A encomenda conduz os passos (SAGA orquestrada). Não há transação comum: cada passo é local e, se o pagamento for recusado, o stock liberta o que reservou. Depois de paga, a encomenda segue para os envios. Na <a href="loja.html">loja</a> vê estes passos a acontecer.</p>
         </div>
         <ol class="stepper" id="stepper"></ol>
         <div class="table-wrap">

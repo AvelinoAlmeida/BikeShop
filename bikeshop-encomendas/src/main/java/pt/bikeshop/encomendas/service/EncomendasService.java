@@ -8,10 +8,12 @@ import org.springframework.cloud.client.circuitbreaker.NoFallbackAvailableExcept
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pt.bikeshop.encomendas.clients.CatalogoClient;
+import pt.bikeshop.encomendas.clients.ClientesClient;
 import pt.bikeshop.encomendas.configuration.MQConfig;
 import pt.bikeshop.encomendas.dto.EncomendaDto;
 import pt.bikeshop.encomendas.dto.EncomendaPedido;
 import pt.bikeshop.encomendas.entity.Encomenda;
+import pt.bikeshop.encomendas.entity.LinhaEncomenda;
 import pt.bikeshop.encomendas.exception.NaoEncontradoException;
 import pt.bikeshop.encomendas.exception.ServicoIndisponivelException;
 import pt.bikeshop.encomendas.messages.Mensagens;
@@ -20,11 +22,13 @@ import pt.bikeshop.encomendas.repository.EncomendaRepository;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * Orquestração da SAGA:
  * criar -> stock.reservar -> (stock.reservado -> pagamento.criar | stock.insuficiente -> CANCELADA)
- * -> (pagamento.aprovado -> PAGA + stock.confirmar | pagamento.recusado -> CANCELADA + stock.libertar)
+ * -> (pagamento.aprovado -> PAGA + stock.confirmar + envio.criar | pagamento.recusado -> CANCELADA + stock.libertar)
+ * -> envio.expedido -> ENVIADA
  */
 @Slf4j
 @Service
@@ -34,6 +38,7 @@ public class EncomendasService {
 
     private final EncomendaRepository encomendas;
     private final CatalogoClient catalogo;
+    private final ClientesClient clientes;
     private final EncomendasPublisher publisher;
     private final ModelMapper mapper;
 
@@ -47,13 +52,20 @@ public class EncomendasService {
         return paraDto(procurar(id));
     }
 
-    /** Passo 1: grava a encomenda PENDENTE com os preços do catálogo e pede a reserva do stock. */
+    /**
+     * Passo 1: grava a encomenda PENDENTE com os preços do catálogo e o cliente (registado nos clientes se for novo)
+     * e pede a reserva do stock.
+     */
     public EncomendaDto criar(EncomendaPedido pedido) {
         Encomenda encomenda = new Encomenda(pedido.clienteNome(), pedido.clienteEmail());
         for (EncomendaPedido.Linha linha : pedido.linhas()) {
             CatalogoClient.PecaCatalogo peca = pecaDoCatalogo(linha.referencia());
             encomenda.adicionarLinha(peca.referencia(), peca.nome(), peca.preco(), linha.quantidade());
         }
+        ClientesClient.Cliente cliente = chamar("Os clientes estão indisponíveis; tente daqui a pouco.",
+                () -> clientes.registar(new ClientesClient.Registo(pedido.clienteNome(), pedido.clienteEmail())));
+        encomenda.setClienteId(cliente.id());
+        encomenda.setMoradaEntrega(cliente.moradaCompleta());
         encomendas.save(encomenda);
         List<Mensagens.Linha> linhas = encomenda.getLinhas().stream()
                 .map(l -> new Mensagens.Linha(l.getReferencia(), l.getQuantidade())).toList();
@@ -78,11 +90,22 @@ public class EncomendasService {
         }
     }
 
-    /** Passo 3a: pago; o stock dá baixa das unidades reservadas. */
+    /** Passo 3a: pago; o stock dá baixa das unidades reservadas e os envios preparam a entrega. */
     public void pagamentoAprovado(UUID id) {
-        if (procurar(id).marcarPaga()) {
+        Encomenda encomenda = procurar(id);
+        if (encomenda.marcarPaga()) {
             publisher.publicar(MQConfig.STOCK_CONFIRMAR, new Mensagens.EncomendaId(id));
-            log.info("Encomenda {} paga", id);
+            int artigos = encomenda.getLinhas().stream().mapToInt(LinhaEncomenda::getQuantidade).sum();
+            publisher.publicar(MQConfig.ENVIO_CRIAR, new Mensagens.CriarEnvio(id, encomenda.getClienteNome(),
+                    encomenda.getClienteEmail(), encomenda.getMoradaEntrega(), artigos));
+            log.info("Encomenda {} paga: envio pedido", id);
+        }
+    }
+
+    /** Passo 4: o envio saiu do armazém. */
+    public void envioExpedido(UUID id, String codigo) {
+        if (procurar(id).marcarEnviada(codigo)) {
+            log.info("Encomenda {} enviada ({})", id, codigo);
         }
     }
 
@@ -96,14 +119,25 @@ public class EncomendasService {
 
     private CatalogoClient.PecaCatalogo pecaDoCatalogo(String referencia) {
         try {
-            return catalogo.peca(referencia);
-        } catch (RuntimeException e) {
-            // Com o circuit breaker, o erro do Feign chega embrulhado em NoFallbackAvailableException
-            Throwable causa = e instanceof NoFallbackAvailableException && e.getCause() != null ? e.getCause() : e;
-            if (causa instanceof FeignException.NotFound) {
+            return chamar("O catálogo está indisponível; tente daqui a pouco.", () -> catalogo.peca(referencia));
+        } catch (ServicoIndisponivelException e) {
+            if (e.getCause() instanceof FeignException.NotFound) {
                 throw new IllegalArgumentException("A peça " + referencia + " não existe no catálogo");
             }
-            throw new ServicoIndisponivelException("O catálogo está indisponível; tente daqui a pouco.", causa);
+            throw e;
+        }
+    }
+
+    /**
+     * Chamada Feign com circuit breaker: qualquer falha passa a 503 com a causa original.
+     * O erro do Feign chega embrulhado em NoFallbackAvailableException.
+     */
+    private static <T> T chamar(String indisponivel, Supplier<T> chamada) {
+        try {
+            return chamada.get();
+        } catch (RuntimeException e) {
+            Throwable causa = e instanceof NoFallbackAvailableException && e.getCause() != null ? e.getCause() : e;
+            throw new ServicoIndisponivelException(indisponivel, causa);
         }
     }
 

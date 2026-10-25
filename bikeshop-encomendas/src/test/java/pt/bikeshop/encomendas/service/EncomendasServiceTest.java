@@ -4,10 +4,12 @@ import feign.FeignException;
 import org.junit.jupiter.api.Test;
 import org.modelmapper.ModelMapper;
 import pt.bikeshop.encomendas.clients.CatalogoClient;
+import pt.bikeshop.encomendas.clients.ClientesClient;
 import pt.bikeshop.encomendas.configuration.MQConfig;
 import pt.bikeshop.encomendas.dto.EncomendaDto;
 import pt.bikeshop.encomendas.dto.EncomendaPedido;
 import pt.bikeshop.encomendas.entity.Encomenda;
+import pt.bikeshop.encomendas.exception.ServicoIndisponivelException;
 import pt.bikeshop.encomendas.messages.Mensagens;
 import pt.bikeshop.encomendas.publishers.EncomendasPublisher;
 import pt.bikeshop.encomendas.repository.EncomendaRepository;
@@ -29,15 +31,20 @@ class EncomendasServiceTest {
     private final EncomendaRepository encomendas = mock(EncomendaRepository.class);
     private final CatalogoClient catalogo = mock(CatalogoClient.class);
     private final EncomendasPublisher publisher = mock(EncomendasPublisher.class);
-    private final EncomendasService servico = new EncomendasService(encomendas, catalogo, publisher, new ModelMapper());
+    private final ClientesClient clientes = mock(ClientesClient.class);
+    private final EncomendasService servico = new EncomendasService(encomendas, catalogo, clientes, publisher, new ModelMapper());
 
     @Test
     void criarUsaOPrecoDoCatalogoEPedeAReserva() {
         when(catalogo.peca("BAT-500")).thenReturn(new CatalogoClient.PecaCatalogo("BAT-500", "PowerTube 500 Wh", new BigDecimal("649.00")));
+        when(clientes.registar(new ClientesClient.Registo("Ana", "ana@bikeshop.pt")))
+                .thenReturn(new ClientesClient.Cliente(7L, "Ana", "ana@bikeshop.pt", "Rua Nova 1, 4000-001 Porto"));
 
         EncomendaDto dto = servico.criar(new EncomendaPedido("Ana", "ana@bikeshop.pt", List.of(new EncomendaPedido.Linha("BAT-500", 2))));
 
         assertThat(dto.getEstado()).isEqualTo("PENDENTE");
+        assertThat(dto.getClienteId()).isEqualTo(7L);
+        assertThat(dto.getMoradaEntrega()).isEqualTo("Rua Nova 1, 4000-001 Porto");
         assertThat(dto.getTotal()).isEqualByComparingTo("1298.00");
         assertThat(dto.getLinhas()).singleElement().satisfies(l -> assertThat(l.getNome()).isEqualTo("PowerTube 500 Wh"));
         verify(encomendas).save(any(Encomenda.class));
@@ -77,14 +84,43 @@ class EncomendasServiceTest {
     }
 
     @Test
-    void pagamentoAprovadoConfirmaOStock() {
+    void clientesEmBaixoNaoCriaEncomenda() {
+        when(catalogo.peca("BAT-500")).thenReturn(new CatalogoClient.PecaCatalogo("BAT-500", "PowerTube 500 Wh", new BigDecimal("649.00")));
+        when(clientes.registar(any())).thenThrow(new IllegalStateException("ligação recusada"));
+
+        assertThatThrownBy(() -> servico.criar(new EncomendaPedido("Ana", "ana@bikeshop.pt", List.of(new EncomendaPedido.Linha("BAT-500", 1)))))
+                .isInstanceOf(ServicoIndisponivelException.class)
+                .hasMessageContaining("clientes");
+        verify(encomendas, never()).save(any());
+        verifyNoInteractions(publisher);
+    }
+
+    @Test
+    void pagamentoAprovadoConfirmaOStockEPedeOEnvio() {
         Encomenda e = encomenda();
+        e.adicionarLinha("BAT-500", "PowerTube 500 Wh", new BigDecimal("649.00"), 2);
+        e.setMoradaEntrega("Rua Nova 1, 4000-001 Porto");
         e.marcarReservada();
 
         servico.pagamentoAprovado(e.getId());
 
         assertThat(e.getEstado()).isEqualTo(Encomenda.Estado.PAGA);
         verify(publisher).publicar(eq(MQConfig.STOCK_CONFIRMAR), any(Mensagens.EncomendaId.class));
+        verify(publisher).publicar(MQConfig.ENVIO_CRIAR,
+                new Mensagens.CriarEnvio(e.getId(), "Ana", "ana@bikeshop.pt", "Rua Nova 1, 4000-001 Porto", 2));
+    }
+
+    @Test
+    void envioExpedidoMarcaEnviadaComOCodigo() {
+        Encomenda e = encomenda();
+        e.marcarReservada();
+        e.marcarPaga();
+
+        servico.envioExpedido(e.getId(), "BS-1A2B3C4D");
+        servico.envioExpedido(e.getId(), "BS-1A2B3C4D");
+
+        assertThat(e.getEstado()).isEqualTo(Encomenda.Estado.ENVIADA);
+        assertThat(e.getCodigoEnvio()).isEqualTo("BS-1A2B3C4D");
     }
 
     @Test

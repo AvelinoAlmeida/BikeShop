@@ -24,6 +24,10 @@ spring:
         observation-enabled: true
         default-requeue-rejected: false
   cloud:
+    # A lista de instâncias guardada pelo LoadBalancer dura 5 s (por omissão, 35 s)
+    loadbalancer:
+      cache:
+        ttl: 5s
     openfeign:
       # Cada chamada Feign passa pelo circuit breaker (configurado em EncomendasConfig)
       circuitbreaker:
@@ -38,6 +42,8 @@ eureka:
   client:
     service-url:
       defaultZone: http://${EUREKA_HOST:localhost}:9761/eureka/
+    # Quem chama outros serviços vê as instâncias novas ao fim de 5 s (por omissão, 30 s)
+    registry-fetch-interval-seconds: 5
   instance:
     prefer-ip-address: true
 

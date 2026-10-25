@@ -1,0 +1,71 @@
+# bikeshop-clientes: Clientes e moradas
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bikeshop-clientes
+  namespace: bikeshop
+  labels:
+    app: bikeshop-clientes
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bikeshop-clientes
+  template:
+    metadata:
+      labels:
+        app: bikeshop-clientes
+    spec:
+      containers:
+        - name: bikeshop-clientes
+          image: bikeshop-clientes:1.0
+          imagePullPolicy: Never          # imagem carregada com minikube image load
+          ports:
+            - containerPort: 9085
+          envFrom:
+            - configMapRef:
+                name: bikeshop-config
+            - secretRef:
+                name: bikeshop-secret
+          env:
+            - name: DB_PORT
+              value: "55436"
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:MaxRAMPercentage=75"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 384Mi
+            limits:
+              memory: 512Mi
+          # O Spring demora a arrancar: a startupProbe dá até 5 minutos antes de a liveness contar
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 9085
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 9085
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 9085
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bikeshop-clientes
+  namespace: bikeshop
+spec:
+  type: ClusterIP
+  selector:
+    app: bikeshop-clientes
+  ports:
+    - name: http
+      port: 9085
+      targetPort: 9085

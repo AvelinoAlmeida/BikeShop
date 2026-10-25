@@ -7,7 +7,7 @@ import pt.bikeshop.encomendas.configuration.MQConfig;
 import pt.bikeshop.encomendas.messages.Mensagens;
 import pt.bikeshop.encomendas.service.EncomendasService;
 
-/** As respostas do stock e dos pagamentos fazem avançar a SAGA. */
+/** As respostas do stock, dos pagamentos e dos envios fazem avançar a SAGA. */
 @Component
 @RequiredArgsConstructor
 public class EncomendasListener {
@@ -32,5 +32,10 @@ public class EncomendasListener {
     @RabbitListener(queues = MQConfig.FILA_PAGAMENTO_RECUSADO)
     public void pagamentoRecusado(Mensagens.Resposta resposta) {
         encomendas.pagamentoRecusado(resposta.encomendaId(), resposta.motivo());
+    }
+
+    @RabbitListener(queues = MQConfig.FILA_ENVIO_EXPEDIDO)
+    public void envioExpedido(Mensagens.EnvioExpedido expedido) {
+        encomendas.envioExpedido(expedido.encomendaId(), expedido.codigo());
     }
 }
